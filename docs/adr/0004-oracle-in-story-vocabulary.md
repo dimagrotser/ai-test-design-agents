@@ -6,4 +6,8 @@ Thresholds and lists (maximum amount, blocked countries, velocity limit) are not
 
 ## Consequences
 
-Every new target needs a Binding and a Binding test. Some SUT constants cannot be injected, for example the currency list in `parse_transaction`. For those the Manifest records the expected value and the Gold Test Design's Validity Run checks it.
+Every new target needs a Binding and a Binding test.
+
+Because the Binding always injects explicit `Rules`, mutants on the SUT default thresholds cannot be killed through it. These are Unreachable Mutants. They are listed once, by hand, before Eval Freeze, and the frozen list is excluded from the denominator for every Variant. It is published next to the Equivalent Mutants and is not merged with them.
+
+Some SUT constants cannot be injected at all, for example the currency list in `parse_transaction`. For those, the Gold Test Design includes a Test Case per list member, and any divergence between the Story and the SUT appears as an Invalid Test Case.
