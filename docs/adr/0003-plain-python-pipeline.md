@@ -4,6 +4,10 @@ The agents are functions from one Pydantic model to another, called in order, wi
 
 Findings from the Critic go back to the Test Designer only, never to the Requirements Analyst. Requirement ids must stay stable after extraction, because traceability and AC Coverage depend on them.
 
+## Consequences
+
+A Requirement missed by the Analyst is not repaired by the Refinement Loop. The loss shows up only as lower AC Coverage.
+
 ## Considered Options
 
 An agent framework with a state graph: rejected for the reasons above. It can be reconsidered if the pipeline gains branching.
