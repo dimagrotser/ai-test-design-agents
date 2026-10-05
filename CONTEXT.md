@@ -111,7 +111,7 @@ A Story about a toy function outside the SUT, used for tuning when no real targe
 _Avoid_: Mock story
 
 **Eval Freeze**:
-The git tag `eval-freeze-v1`, placed after the last edit of Stories, Manifest, Gold Test Designs, Bindings and the equivalent-mutant list. Nothing in the eval corpus changes after it.
+The git tag `eval-freeze-v1`, placed after the last edit of Stories, Manifest, Gold Test Designs, Bindings and the lists of Equivalent and Unreachable Mutants. Nothing in the eval corpus changes after it.
 _Avoid_: Snapshot, release
 
 **Gold Test Design**:
@@ -142,8 +142,12 @@ _Avoid_: Fuzzing
 A mutant that cannot change observable behavior. They are identified once by hand before Eval Freeze and removed from the denominator for every Variant.
 _Avoid_: Ignored mutant
 
+**Unreachable Mutant**:
+A mutant that no Test Case can kill through the Binding, such as a change to a SUT default threshold that the Binding always overrides. They are listed by hand before Eval Freeze, removed from the denominator for every Variant, and published separately from Equivalent Mutants.
+_Avoid_: Dead mutant
+
 **Kill Rate**:
-The share of non-equivalent mutants killed by a Test Design, also known as mutation score. It is always reported next to AC Coverage, the Gold Test Design value and the Baseline Suite value.
+The share of mutants, excluding Equivalent and Unreachable Mutants, killed by a Test Design, also known as mutation score. It is always reported next to AC Coverage, the Gold Test Design value and the Baseline Suite value.
 
 **Baseline Suite**:
 The 33 existing unit tests of the SUT, run through the same Mutation Run. It is the reference for human-written tests.
