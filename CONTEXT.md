@@ -49,7 +49,7 @@ A name for one business rule that can decide an outcome, such as `amount_limit`.
 _Avoid_: Rule, reason code
 
 **Test Context**:
-The data an executor needs and a real Story does not contain: the target, the Nominal Input and the Outcome Keys. It is mandatory in v1 and lives in the Corpus Manifest.
+The data an executor needs and a real Story does not contain: the target, the Nominal Input and the Outcome Keys. It is mandatory in v1 and is a standalone file, which the Corpus Manifest references in the eval.
 _Avoid_: Fixture, metadata
 
 **Priority**:
@@ -95,7 +95,7 @@ The codebase whose behavior the Test Designs describe, here the `event-driven-pa
 _Avoid_: Target app, subject
 
 **Corpus Manifest**:
-A file that maps each eval Story to its Test Context, SUT Config, split and class. Agents see only the Test Context taken from it, never the split, class or SUT Config.
+A file that maps each eval Story to its Test Context file, SUT Config, split and class. Agents see only the Test Context taken from it, never the split, class or SUT Config.
 _Avoid_: Config, index
 
 **Dev Story**, **Held-out Story**:
@@ -111,7 +111,7 @@ A Story about a toy function outside the SUT, used for tuning when no real targe
 _Avoid_: Mock story
 
 **Eval Freeze**:
-The git tag `eval-freeze-v1`, placed after the last edit of Stories, Manifest, Gold Test Designs, Bindings and the lists of Equivalent and Unreachable Mutants. Nothing in the eval corpus changes after it.
+The git tag `eval-freeze-v1`, placed after the last edit of Stories, Manifest, Gold Test Designs, Bindings, the Test Context files and the lists of Equivalent and Unreachable Mutants. Nothing in the eval corpus changes after it.
 _Avoid_: Snapshot, release
 
 **Gold Test Design**:
