@@ -3,12 +3,8 @@ from dataclasses import dataclass
 from pydantic import BaseModel, ValidationError
 
 from atda.ports.llm import LLMClient, LLMRequest, Message
+from atda.prompts import load_prompt
 from atda.schemas.validation import format_validation_error
-
-# Prompt files arrive with the first agent, so the wording lives here until then.
-RETRY_MESSAGE = (
-    "Your previous answer was not valid: {error}\nAnswer again with only the corrected JSON."
-)
 
 
 @dataclass(frozen=True)
@@ -68,7 +64,7 @@ def generate[T: BaseModel](
                     "messages": (
                         *current.messages,
                         Message(role="assistant", content=response.text),
-                        Message(role="user", content=RETRY_MESSAGE.format(error=problem)),
+                        Message(role="user", content=load_prompt("retry").format(error=problem)),
                     )
                 }
             )
