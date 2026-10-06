@@ -10,6 +10,8 @@ A Mutation Run only makes sense for targets under `src/payments/domain`, which i
 
 Every Story except Gap-probe Stories gets a Gold Test Design, written from the Story before model runs and run through the same executor. It must have zero Invalid Test Cases, and for Stories with a Mutation Run its Kill Rate is the ceiling. The Baseline Suite of 33 SUT tests is the human reference. A Gold Test Design written from a Story can score below the Baseline Suite, and that result is published as it is.
 
+The SUT is checked out by commit SHA, never by branch. The SHA is recorded in the Corpus Manifest and covered by Eval Freeze. CI on pull requests runs the Validity Run only. The Mutation Run stays local or in a manual job. If the SUT repository is private, tests that need it stay local.
+
 ## Consequences
 
 With so few Stories the report shows per-Story numbers and makes no claim of statistical significance. This goes into the Limitations section of the README, together with the fact that Dev prompts are tuned partly on a Synthetic Story I wrote myself.
