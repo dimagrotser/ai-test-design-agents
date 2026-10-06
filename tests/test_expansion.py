@@ -7,7 +7,13 @@ from atda.expansion import ExpansionError, expand
 from atda.schemas.outcome import ExpectedOutcome
 from atda.schemas.requirements import Requirement
 from atda.schemas.scalar import Scalar
-from atda.schemas.test_condition import BvaCondition, Operator, Technique
+from atda.schemas.test_condition import (
+    BvaCondition,
+    EpCondition,
+    EquivalenceClass,
+    Operator,
+    Technique,
+)
 
 ValueType = Literal["integer", "decimal"]
 
@@ -106,3 +112,61 @@ def test_an_unknown_requirement_is_reported() -> None:
 def test_an_input_missing_from_the_nominal_input_is_reported() -> None:
     with pytest.raises(ExpansionError, match="input velocity is not in the Nominal Input"):
         expand([bva(Operator.GT, "1", input_name="velocity")], REQUIREMENTS, NOMINAL)
+
+
+def ep(
+    *classes: tuple[str, tuple[Scalar, ...], ExpectedOutcome], input_name: str = "country"
+) -> EpCondition:
+    return EpCondition(
+        requirement_id="S-1.R2",
+        input_name=input_name,
+        evidence="from KP, IR or SY",
+        classes=tuple(EquivalenceClass(name=n, values=v, outcome=o) for n, v, o in classes),
+    )
+
+
+BLOCKED = ExpectedOutcome(status="rejected", outcome_keys=("blocked_country",))
+
+
+def test_an_enumerated_class_and_an_other_class_give_one_case_per_member_plus_the_other() -> None:
+    condition = ep(("blocked", ("KP", "IR", "SY"), BLOCKED), ("other", ("DE",), APPROVED))
+
+    cases = expand([condition], REQUIREMENTS, NOMINAL)
+
+    assert [c.overrides for c in cases] == [{"country": v} for v in ("KP", "IR", "SY", "DE")]
+    assert [c.expected for c in cases] == [BLOCKED, BLOCKED, BLOCKED, APPROVED]
+    assert {c.technique for c in cases} == {Technique.EP}
+    assert {(c.requirement_ids, c.ac_ids) for c in cases} == {(("S-1.R2",), ("AC-2",))}
+    assert cases[0].rationale == "class 'blocked' of country: KP"
+    assert cases[3].rationale == "class 'other' of country: DE"
+
+
+@pytest.mark.parametrize(("size", "used"), [(5, 5), (6, 1)])
+def test_a_small_class_is_used_in_full_and_a_large_one_by_its_representative(
+    size: int, used: int
+) -> None:
+    members = tuple(f"C{n}" for n in range(size))
+    condition = ep(("big", members, BLOCKED), ("other", ("DE",), APPROVED))
+
+    cases = expand([condition], REQUIREMENTS, NOMINAL)
+
+    assert [c.overrides["country"] for c in cases] == [*members[:used], "DE"]
+
+
+def test_ep_and_bva_cases_share_one_id_sequence_in_condition_order() -> None:
+    conditions: list[BvaCondition | EpCondition] = [
+        ep(("blocked", ("KP",), BLOCKED), ("other", ("DE",), APPROVED)),
+        bva(Operator.GT, "10000"),
+    ]
+
+    cases = expand(conditions, REQUIREMENTS, NOMINAL)
+
+    assert [c.id for c in cases] == ["TC-1", "TC-2", "TC-3", "TC-4", "TC-5"]
+    assert [c.technique for c in cases] == [Technique.EP] * 2 + [Technique.BVA] * 3
+
+
+def test_an_ep_input_missing_from_the_nominal_input_is_reported() -> None:
+    condition = ep(("a", ("x",), BLOCKED), ("b", ("y",), APPROVED), input_name="region")
+
+    with pytest.raises(ExpansionError, match="input region is not in the Nominal Input"):
+        expand([condition], REQUIREMENTS, NOMINAL)

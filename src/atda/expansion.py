@@ -5,11 +5,12 @@ from decimal import Decimal
 from atda.schemas.outcome import ExpectedOutcome
 from atda.schemas.requirements import Requirement
 from atda.schemas.scalar import Scalar
-from atda.schemas.test_condition import BvaCondition, Operator
+from atda.schemas.test_condition import BvaCondition, EpCondition, Operator
 from atda.schemas.test_design import TestCase
 
 STEPS = {"integer": Decimal(1), "decimal": Decimal("0.01")}
 POSITIONS = ("just below", "on", "just above")
+SMALL_CLASS = 5
 COMPARISONS: dict[Operator, Callable[[Decimal, Decimal], bool]] = {
     Operator.GT: py.gt,
     Operator.GE: py.ge,
@@ -24,7 +25,7 @@ class ExpansionError(ValueError):
 
 
 def expand(
-    conditions: Sequence[BvaCondition],
+    conditions: Sequence[BvaCondition | EpCondition],
     requirements: Sequence[Requirement],
     nominal_input: Mapping[str, Scalar],
 ) -> tuple[TestCase, ...]:
@@ -35,7 +36,12 @@ def expand(
             raise ExpansionError(f"unknown requirement id {condition.requirement_id}")
         if condition.input_name not in nominal_input:
             raise ExpansionError(f"input {condition.input_name} is not in the Nominal Input")
-        for value, expected, rationale in _boundary_points(condition):
+        points = (
+            _boundary_points(condition)
+            if isinstance(condition, BvaCondition)
+            else _class_points(condition)
+        )
+        for value, expected, rationale in points:
             cases.append(
                 TestCase(
                     id=f"TC-{len(cases) + 1}",
@@ -67,6 +73,17 @@ def _boundary_points(condition: BvaCondition) -> list[tuple[Scalar, ExpectedOutc
         )
         scalar: Scalar = int(value) if condition.value_type == "integer" else _plain(value)
         points.append((scalar, expected, rationale))
+    return points
+
+
+def _class_points(condition: EpCondition) -> list[tuple[Scalar, ExpectedOutcome, str]]:
+    points = []
+    for equivalence_class in condition.classes:
+        values = equivalence_class.values
+        # A large class is represented by its first value.
+        for value in values if len(values) <= SMALL_CLASS else values[:1]:
+            rationale = f"class '{equivalence_class.name}' of {condition.input_name}: {value}"
+            points.append((value, equivalence_class.outcome, rationale))
     return points
 
 
