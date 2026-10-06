@@ -34,6 +34,8 @@ files = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# Domain names such as TestContext start with "Test". Our tests are plain functions.
+python_classes = []
 
 [tool.uv.build-backend]
 module-name = "atda"

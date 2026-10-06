@@ -121,7 +121,7 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 
 ### 03: Story, Test Context and FileSource
 
-- **Status:** todo
+- **Status:** done
 - **Owner:** agent
 - **Branch:** feat/story-file-source
 - **Blocked by:** 01a
