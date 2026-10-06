@@ -1,5 +1,5 @@
 import pytest
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationInfo, field_validator
 
 from atda.adapters.fake import FakeLLMClient
 from atda.ports.llm import LLMRequest, LLMResponse, Message
@@ -12,6 +12,18 @@ MISSING_FIELD = '{"answer": "ok"}'
 class Answer(BaseModel):
     answer: str
     confidence: int
+
+
+class Tagged(BaseModel):
+    tag: str
+
+    @field_validator("tag")
+    @classmethod
+    def _tag_is_allowed(cls, tag: str, info: ValidationInfo) -> str:
+        allowed = info.context["allowed"] if info.context else ()
+        if tag not in allowed:
+            raise ValueError(f"unknown tag {tag}")
+        return tag
 
 
 def ask() -> LLMRequest:
@@ -115,3 +127,13 @@ def test_failed_answers_accumulate_and_the_request_settings_stay_the_same() -> N
 def test_at_least_one_attempt_is_required() -> None:
     with pytest.raises(ValueError, match="max_attempts"):
         generate(FakeLLMClient([GOOD]), ask(), Answer, max_attempts=0)
+
+
+def test_the_validation_context_reaches_the_model_validators() -> None:
+    client = FakeLLMClient(['{"tag": "x"}', '{"tag": "a"}'])
+
+    result = generate(client, ask(), Tagged, context={"allowed": ("a", "b")})
+
+    assert result.value.tag == "a"
+    assert result.attempts == 2
+    assert "unknown tag x" in client.requests[1].messages[-1].content

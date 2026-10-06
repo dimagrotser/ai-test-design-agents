@@ -44,7 +44,11 @@ class StructuredGenerationError(Exception):
 
 
 def generate[T: BaseModel](
-    client: LLMClient, request: LLMRequest, model_type: type[T], max_attempts: int = 3
+    client: LLMClient,
+    request: LLMRequest,
+    model_type: type[T],
+    max_attempts: int = 3,
+    context: dict[str, object] | None = None,
 ) -> Generated[T]:
     if max_attempts < 1:
         raise ValueError("max_attempts must be at least 1")
@@ -53,7 +57,7 @@ def generate[T: BaseModel](
     for attempt in range(1, max_attempts + 1):
         response = client.complete(current)
         try:
-            value = model_type.model_validate_json(response.text)
+            value = model_type.model_validate_json(response.text, context=context)
         except ValidationError as error:
             problem = format_validation_error(error)
             failures.append(
