@@ -137,7 +137,7 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 
 ### 04: `design` command skeleton
 
-- **Status:** todo
+- **Status:** done
 - **Owner:** agent
 - **Branch:** feat/cli-design
 - **Blocked by:** 03
