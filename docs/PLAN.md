@@ -75,7 +75,7 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 
 ### 01: Scaffold and CI
 
-- **Status:** todo
+- **Status:** done
 - **Owner:** agent
 - **Branch:** chore/scaffold
 - **Blocked by:** none
