@@ -197,7 +197,7 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 
 ### 07: Test Condition schema and EP/BVA expansion
 
-- **Status:** todo
+- **Status:** done
 - **Owner:** agent
 - **Branch:** feat/test-conditions-ep-bva
 - **Blocked by:** 06
