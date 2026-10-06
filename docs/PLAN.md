@@ -7,15 +7,16 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 ## How to read this file
 
 - **Owner**: `agent` tickets are implemented by the coding agent. `maintainer` tickets are written by hand by the repo owner. The agent never drafts Stories, Test Context files, Gold Test Designs, the Corpus Manifest or the mutant lists.
-- **Status**: `todo`, `doing` or `done`. The first `agent` ticket with status `todo` whose blockers are all `done` is the next one to pick up.
+- **Status**: `todo` or `done`. The maintainer sets `done` after merging the PR.
+- **Picking the next ticket**: skip `maintainer` tickets, take the first `agent` ticket with status `todo` whose blockers are all `done`, and report which `maintainer` tickets are blocking or about to block the frontier. Optional tickets (38, 39) are never picked unless named.
 - **Definition of done**, for every ticket with a branch: the failing tests were written first, `uv run pytest`, `uv run ruff check .`, `uv run ruff format --check .` and `uv run mypy src` pass, the PR stays inside the ticket, and unrelated problems are listed in the PR description.
 - Tests never call a real model or the network. Tests that need the SUT checkout are marked `sut` and skipped when the SUT path is not configured.
 
 ## Ship points
 
-1. **Scaffold through Test Designer on one Story, with CI** (tickets 01 to 14). `design` runs on the Synthetic Story through Replay Fixtures in CI and writes a Test Design report. The repository is presentable here.
-2. **Walking skeleton, no LLM** (tickets 15 to 19, plus spike 02). A hand-written Gold Test Design for FRAUD goes through the Binding, the Validity Run and mutmut to a Kill Rate, shown next to the Baseline Suite of 33 SUT tests.
-3. **Full eval** (tickets 20 to 39). Three Variants, three local models and one cloud model, the frozen corpus, the report and the README with results.
+1. **Scaffold through Test Designer on one Story, with CI** (17 tickets: 15 agent and 2 maintainer, including spike 02, which runs in parallel and blocks nothing here). `design` runs on the Synthetic Story through Replay Fixtures in CI and writes a Test Design report. The repository is presentable here.
+2. **Walking skeleton, no LLM** (6 more tickets, 23 in total; spike 02 is counted in ship point 1). A hand-written Gold Test Design for FRAUD goes through the Binding, the Validity Run and mutmut to a Kill Rate, shown next to the Baseline Suite of 33 SUT tests.
+3. **Full eval** (23 more tickets, 46 in total, of which 2 are optional). Three Variants, three local models and one cloud model, the frozen corpus, the report and the README with results.
 
 ## Ticket index
 
@@ -35,7 +36,8 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 | 10 | Test Design report | agent | 08 |
 | 11 | Ollama setup (checklist, no PR) | maintainer | none |
 | 12 | OllamaClient and `post_json` | agent | 05, 11 |
-| 13 | ReplayClient, fixture key and `record` | agent | 08, 09, 12, M1 |
+| 12a | Provider Profiles | agent | 12 |
+| 13 | ReplayClient, fixture key and `record` | agent | 08, 09, 12a, M1 |
 | 14 | README for ship point 1 | agent | 10, 13 |
 | 15 | Corpus Manifest loader | agent | 03 |
 | M2 | FRAUD Story, Test Context, SUT Config, Gold Test Design | maintainer | 09, 15 |
@@ -47,8 +49,8 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 | 21 | Deterministic Findings | agent | 09 |
 | 22 | Critic and Refinement Loop | agent | 08, 21 |
 | 23 | Variants | agent | 20, 22 |
-| 24 | OpenAI-compatible client | agent | 12 |
-| 25 | AnthropicClient (untested) | agent | 12 |
+| 24 | OpenAI-compatible client | agent | 12a |
+| 25 | AnthropicClient (untested) | agent | 12a |
 | 26 | JiraSource stub | agent | 03 |
 | M3 | Stories and Test Contexts for the remaining targets | maintainer | 15 |
 | 27 | parse_transaction Binding | agent | 16, M3 |
@@ -57,8 +59,8 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 | 30 | Synthetic target and Binding | agent | 16, M1 |
 | M4 | Gold Test Designs for the remaining Stories | maintainer | 27, 28, 29, 30 |
 | 31 | Eval metrics and aggregation | agent | 18 |
-| 32 | Prompt tuning on Dev Stories | agent | 23, 28, 29, 30, 31 |
-| 33 | Spike: wall-clock of one Dev run on the ~30B model | agent | 11, 23 |
+| 32 | Prompt tuning on Dev Stories | agent | 13, 23, 28, 29, 30, 31 |
+| 33 | Spike: wall-clock of one Dev run on the ~30B model | agent | 11, 12a, 23 |
 | 34 | Eval matrix runner | agent | 23, 31, 33 |
 | 35 | Eval report | agent | 34 |
 | M5 | Eval Freeze | maintainer | 18, M4, 32, 33 |
@@ -200,15 +202,16 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 - **Branch:** feat/test-conditions-ep-bva
 - **Blocked by:** 06
 - **Goal:** Deterministic expansion from Test Conditions to Test Cases for EP and BVA, with no LLM involved (ADR 0002).
-- **Scope:** `TestCondition`, `TestCase` and `TestDesign` models. A BVA condition has a field, a boundary, an operator from a closed enum and Expected Outcomes on each side, plus a verbatim evidence quote. An EP condition has classes with Expected Outcomes. Expansion code: three BVA points around a boundary with a step by type (`Decimal` 0.01, `int` 1), EP representatives (every member of a small enumerated class, otherwise the given representative), overrides merged onto the Nominal Input. Every Test Case records its Technique, a rationale and its Requirement and AC links.
-- **Out of scope:** Decision Table, duplicate merge, the LLM agent, the evidence check against the Story text.
+- **Scope:** `TestCondition`, `TestCase` and `TestDesign` models. A BVA condition has a field, a boundary, an operator from a closed enum and Expected Outcomes on each side, plus a verbatim evidence quote. An EP condition has classes with Expected Outcomes. Expansion code: three BVA points around a boundary with a step by type (`Decimal` 0.01, `int` 1), EP representatives (every member of a small enumerated class, otherwise the given representative), overrides merged onto the Nominal Input. Every Test Case records its Technique, a rationale and its Requirement and AC links. Expected Outcome has the optional `values` field from ADR 0004 (name to scalar, closed set of types, exact equality). It is part of the schema now and unused until ticket 28, so the schema and the Replay Fixtures stay stable.
+- **Out of scope:** Decision Table, duplicate merge, the LLM agent, the evidence check against the Story text, any use of `values`.
 - **Acceptance criteria:**
   - [ ] A `>` boundary at 10000 expands to 9999.99, 10000 and 10000.01 with the outcomes the operator implies.
   - [ ] A `>=` boundary at 5 expands to 4, 5 and 6.
   - [ ] An enumerated class of three members plus one other class gives four Test Cases.
   - [ ] Output order and ids are deterministic.
   - [ ] A condition with no operator is rejected by the schema.
-- **Tests first:** One table-driven test per operator. EP enumeration. Determinism. Schema rejection.
+  - [ ] An Expected Outcome without `values` is valid, and `values` accepts only the closed set of scalar types.
+- **Tests first:** One table-driven test per operator. EP enumeration. Determinism. Schema rejection. Accepted and rejected types for `values`.
 
 ### 08: Test Designer agent with evidence check
 
@@ -289,21 +292,38 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
   - [ ] Every request carries the custom User-Agent.
 - **Tests first:** All four, with the transport function stubbed.
 
+### 12a: Provider Profiles
+
+- **Status:** todo
+- **Owner:** agent
+- **Branch:** feat/provider-profiles
+- **Blocked by:** 12
+- **Goal:** Models are chosen by a named Provider Profile, so the eval and Eval Freeze have one thing to pin.
+- **Scope:** A `ProviderProfile` model: adapter, endpoint, model tag, structured-output mechanism (a closed set of names defined by the adapters), context size, timeout, local or cloud, and the name of the environment variable that holds the key for cloud profiles. Profile files in the repo, with one profile per local model (about 8B, 14B and 30B, using the tags from checklist 11). A `--profile <name>` option on `design` and `record` that replaces `--ollama`.
+- **Out of scope:** Cloud profiles (tickets 24 and 25), choosing the final models (M5).
+- **Acceptance criteria:**
+  - [ ] An unknown profile name fails and lists the available names.
+  - [ ] A profile with a missing field, or with a field that holds a key value instead of a variable name, is rejected.
+  - [ ] `design --profile <name>` builds the matching client.
+  - [ ] The three local profiles load.
+- **Tests first:** Valid profile loads. Each rejection. Client construction from a profile with the transport stubbed.
+
 ### 13: ReplayClient, fixture key and `record`
 
 - **Status:** todo
 - **Owner:** agent
 - **Branch:** feat/replay-record
-- **Blocked by:** 08, 09, 12, M1
+- **Blocked by:** 08, 09, 12a, M1
 - **Goal:** CI runs the whole pipeline on the Synthetic Story from recorded responses, with no model and no keys.
-- **Scope:** Fixture key as a hash of model, messages, schema, temperature, seed and `num_ctx`. `ReplayClient` reads fixtures by key and raises a clear error that shows the key when none matches. A `record` subcommand runs the pipeline with a real client at temperature 0 and writes fixtures. The maintainer records the fixtures locally from the Synthetic Story and commits them in this PR. A CI step runs `design` on that Story through Replay and compares the output with an expected Test Design.
+- **Scope:** Fixture key as a hash of model, messages, schema, temperature, seed and `num_ctx`. `ReplayClient` reads fixtures by key and raises a clear error that shows the key when none matches. A `record --profile <name>` subcommand runs the pipeline with a real client at temperature 0 and writes fixtures. A fixture stores the request body and the response body only, never headers, keys or tokens. The maintainer records the fixtures locally from the Synthetic Story and commits them in this PR. A CI step runs `design` on that Story through Replay and compares the output with an expected Test Design.
 - **Out of scope:** Recording held-out Stories (ticket 15 adds the guard), any recording in CI.
 - **Acceptance criteria:**
   - [ ] Changing any one of the six key components changes the key.
   - [ ] A changed prompt makes the replay fail with a missing-fixture error, not a silent old answer.
   - [ ] Replaying recorded fixtures reproduces the recorded Test Design exactly.
+  - [ ] A recorded fixture file contains no authorization header and no key value.
   - [ ] The CI step runs and passes.
-- **Tests first:** Key sensitivity, parametrized over the six components. Missing fixture error. Record then replay gives the same result, using FakeLLMClient as the recorded source.
+- **Tests first:** Key sensitivity, parametrized over the six components. Missing fixture error. Record then replay gives the same result, using FakeLLMClient as the recorded source. A recording made with a request that carries a fake key and an authorization header leaves neither in the file.
 
 ### 14: README for ship point 1
 
@@ -320,6 +340,8 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
   - [ ] No em-dashes and none of the banned marketing words.
 - **Tests first:** None.
 
+> **Cut line: ship point 1.** 17 tickets (15 agent, 2 maintainer), including spike 02 and Provider Profiles. If the project stops here, it is a working Story to Test Design tool with CI on replayed responses.
+
 ---
 
 # Ship point 2: walking skeleton, no LLM
@@ -331,13 +353,14 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 - **Branch:** feat/corpus-manifest
 - **Blocked by:** 03
 - **Goal:** Eval-only data is kept apart from what the agents see (ADR 0008).
-- **Scope:** `CorpusManifest` model: per Story the Test Context file, SUT Config, split (dev or held-out) and class (normal or Gap-probe). A function that returns the agent view of a Story, containing the Story and its Test Context only. `record` refuses held-out Stories.
+- **Scope:** `CorpusManifest` model: per Story the Test Context file, SUT Config, split (dev or held-out) and class (normal or Gap-probe), plus the SUT commit SHA, which must be a full SHA and never a branch name. A function that returns the agent view of a Story, containing the Story and its Test Context only. `record` refuses held-out Stories.
 - **Out of scope:** Manifest content (M2, M3), the eval commands.
 - **Acceptance criteria:**
   - [ ] The agent view has no field for SUT Config, split or class.
   - [ ] A missing Test Context file, an unknown split or an unknown class is rejected with a clear message.
+  - [ ] A SUT reference that is not a full commit SHA, such as `main` or an abbreviated hash, is rejected.
   - [ ] `record` on a held-out Story exits non-zero and writes nothing.
-- **Tests first:** Valid manifest. Each rejection. The agent view type check. The `record` guard.
+- **Tests first:** Valid manifest. Each rejection, including the branch name as SUT reference. The agent view type check. The `record` guard.
 
 ### M2: FRAUD Story, Test Context, SUT Config, Gold Test Design
 
@@ -346,7 +369,7 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 - **Branch:** chore/corpus-fraud
 - **Blocked by:** 09, 15
 - **Goal:** The first held-out Story and its oracle.
-- **Scope:** The FRAUD Story for `fraud.evaluate`, written as product owner with thresholds and boundary inclusiveness fixed. It stays silent about currency, so that this surfaces as a Gap (see "Flagged ambiguities" in `CONTEXT.md`). The Test Context file. The SUT Config. A Gold Test Design as `TestDesign` JSON, written from the Story and not from code. Manifest entries for FRAUD and for the Synthetic Story. A file `docs/eval-changelog.md` with the first line for pre-freeze edits.
+- **Scope:** The FRAUD Story for `fraud.evaluate`, written as product owner with thresholds and boundary inclusiveness fixed. It stays silent about currency, so that this surfaces as a Gap (see "Flagged ambiguities" in `CONTEXT.md`). The Test Context file. The SUT Config. A Gold Test Design as `TestDesign` JSON, written from the Story and not from code. Manifest entries for FRAUD and for the Synthetic Story, with the SUT commit SHA. A file `docs/eval-changelog.md` with the first line for pre-freeze edits.
 - **Out of scope:** The Binding (ticket 16), any model run.
 - **Acceptance criteria:**
   - [ ] The Gold Test Design loads as `TestDesign`.
@@ -360,13 +383,14 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 - **Branch:** feat/validity-run-fraud
 - **Blocked by:** 02, 04, 15, M2
 - **Goal:** The Gold Test Design for FRAUD runs against the unmodified SUT and every Test Case passes (ADRs 0004 and 0005).
-- **Scope:** A Binding for `fraud.evaluate` under `eval/bindings/`, shaped by the spike decision. It builds an explicit `Rules` object from the SUT Config and maps `Decision.reasons` to Outcome Keys. The runner is started with `uv run --project <SUT>`, reads Test Cases as JSON on stdin and writes actual outcomes as JSON on stdout, and runs all Test Cases of a Story in one process. An `eval validity` subcommand reports passed and Invalid Test Cases per Story. The SUT path comes from an option or an environment variable. Unit tests for the Binding.
-- **Out of scope:** Mutation Run, the other targets, CI access to the SUT (decide here whether CI checks out the SUT repository, or whether `sut` tests stay local).
+- **Scope:** A Binding for `fraud.evaluate` under `eval/bindings/`, shaped by the spike decision. It builds an explicit `Rules` object from the SUT Config and maps `Decision.reasons` to Outcome Keys. The runner is started with `uv run --project <SUT>`, reads Test Cases as JSON on stdin and writes actual outcomes as JSON on stdout, and runs all Test Cases of a Story in one process. An `eval validity` subcommand reports passed and Invalid Test Cases per Story. The SUT path comes from an option or an environment variable. Unit tests for the Binding. A CI job that checks out `event-driven-payments` at the SHA from the Corpus Manifest and runs the Validity Run, and nothing heavier, on pull requests. If the SUT repository is private, the job is left out and the `sut` tests stay local.
+- **Out of scope:** Mutation Run, the other targets, any CI job that runs mutmut.
 - **Acceptance criteria:**
   - [ ] The Gold Test Design for FRAUD has zero Invalid Test Cases.
   - [ ] A design with a wrong operator on the amount boundary reports an Invalid Test Case at 10000.
   - [ ] The Binding injects thresholds from the SUT Config and never uses SUT defaults.
   - [ ] The SUT repository is not modified.
+  - [ ] CI checks out the SUT by the pinned SHA, or the PR says why the job is absent.
 - **Tests first:** Mapping of each reason text to its Outcome Key, including several reasons at once. Threshold injection. An unknown reason text fails loudly. A `sut` test with the real checkout for the wrong-operator case.
 
 ### 17: Mutation Run and Kill Rate
@@ -376,8 +400,8 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 - **Branch:** feat/mutation-run
 - **Blocked by:** 16
 - **Goal:** Valid Test Cases of a Test Design are scored by mutmut on a copy of the SUT.
-- **Scope:** Copy the SUT to a temporary directory. Generate a pytest module from the valid Test Cases of the Validity Run that calls the same Binding. Run mutmut on `src/payments/domain`. Parse the result. Statuses: killed, survived, timeout (counted as killed and shown in its own column), not covered (counted as survived). Kill Rate excludes the Equivalent and Unreachable Mutants from the denominator. `eval mutation` prints the result as JSON.
-- **Out of scope:** Baseline Suite, the mutant lists themselves, any model run.
+- **Scope:** Copy the SUT to a temporary directory. Generate a pytest module from the valid Test Cases of the Validity Run that calls the same Binding. Run mutmut on `src/payments/domain`. Parse the result. Statuses: killed, survived, timeout (counted as killed and shown in its own column), not covered (counted as survived). Kill Rate excludes the Equivalent and Unreachable Mutants from the denominator. `eval mutation` prints the result as JSON. The Mutation Run runs locally or in a manual `workflow_dispatch` job and never on pull requests.
+- **Out of scope:** Baseline Suite, the mutant lists themselves, any model run, running mutmut on pull requests.
 - **Acceptance criteria:**
   - [ ] The Kill Rate for the FRAUD Gold Test Design is produced end to end.
   - [ ] The timeout column and the counts of excluded mutants are in the output.
@@ -414,6 +438,8 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
   - [ ] If Gold scores below the Baseline Suite, the README says so.
 - **Tests first:** None.
 
+> **Cut line: ship point 2.** 6 more tickets, 23 in total. If the project stops here, it can measure a Test Design against mutants of the SUT, with no model comparison.
+
 ---
 
 # Ship point 3: full eval
@@ -425,13 +451,13 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 - **Branch:** feat/risk-prioritizer
 - **Blocked by:** 06
 - **Goal:** Test Cases carry a Priority derived from risk.
-- **Scope:** The model scores likelihood and impact from 1 to 3 for each Requirement through Structured Generation. Code computes the Priority from the product of the two (proposed: 6 or more is P1, 3 to 5 is P2, 1 to 2 is P3). A Test Case takes the highest Priority of its Requirements. The report gets a Priority column.
+- **Scope:** The model scores likelihood and impact from 1 to 3 for each Requirement through Structured Generation. Code maps the pair to a Priority with an explicit 3 by 3 lookup table, not a formula. The table is: P1 for likelihood times impact of 6 or 9, P2 for 3 or 4, and P3 for 1 or 2, written out cell by cell. A Test Case takes the highest Priority of its Requirements. The report gets a Priority column.
 - **Out of scope:** Using Priority to order or filter Test Cases.
 - **Acceptance criteria:**
-  - [ ] All nine likelihood and impact pairs map to the expected Priority.
+  - [ ] Each of the nine likelihood and impact cells maps to its Priority through the lookup table.
   - [ ] A merged Test Case takes the highest Priority of its Requirements.
   - [ ] A score outside 1 to 3 is rejected and retried.
-- **Tests first:** The nine-pair table. Merged inheritance. Out-of-range retry.
+- **Tests first:** One test per table cell, nine in all. Merged inheritance. Out-of-range retry.
 
 ### 21: Deterministic Findings
 
@@ -484,9 +510,9 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 - **Status:** todo
 - **Owner:** agent
 - **Branch:** feat/openai-compatible-client
-- **Blocked by:** 12
+- **Blocked by:** 12a
 - **Goal:** One adapter for the free cloud tier chosen later (ADR 0001).
-- **Scope:** `OpenAICompatibleClient` over `post_json` with a configurable base URL and model. The API key is read from an environment variable and never printed or logged. Token counts from the response.
+- **Scope:** `OpenAICompatibleClient` over `post_json`, configured by a cloud Provider Profile (base URL, model, key variable name). One example profile for a provider that offers a free tier. The API key is read from an environment variable and never printed or logged. Token counts from the response.
 - **Out of scope:** Choosing the provider and the model (M5), real network calls in tests.
 - **Acceptance criteria:**
   - [ ] The payload and the authorization header are correct.
@@ -499,14 +525,16 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 - **Status:** todo
 - **Owner:** agent
 - **Branch:** feat/anthropic-client
-- **Blocked by:** 12
-- **Goal:** `LLMClient` implemented for the Messages API, and marked untested in code and docs (ADR 0001).
-- **Scope:** `AnthropicClient` over `post_json`, with no SDK and no new dependency. A docstring and a README line that say it has never been run against the real API.
-- **Out of scope:** Any real call.
+- **Blocked by:** 12a
+- **Goal:** `LLMClient` implemented for the Messages API, and marked untested in code and docs until the live smoke test has been run with a key (ADR 0001).
+- **Scope:** `AnthropicClient` over `post_json`, with no SDK and no new dependency, configured by a cloud Provider Profile. The request format and the structured-output mechanism are taken from the official Anthropic API documentation, and the PR description links the pages used. One opt-in smoke test with the pytest marker `live`: it makes one real call, is excluded by default through the pytest options, and is never run in CI. A docstring and a README line that say the class has not been run against the real API.
+- **Out of scope:** Any real call outside the `live` test, using the class in the eval.
 - **Acceptance criteria:**
-  - [ ] The payload shape is checked against a stubbed transport.
+  - [ ] The payload shape is checked against a stubbed transport and matches the documented format.
+  - [ ] `uv run pytest` does not run the `live` test, and CI does not select it.
+  - [ ] The `live` test skips with a clear message when the key variable is not set.
   - [ ] The class and the README both say untested.
-- **Tests first:** Payload shape and key handling.
+- **Tests first:** Payload shape and key handling with the stubbed transport. The default test run deselects `live`.
 
 ### 26: JiraSource stub
 
@@ -558,13 +586,13 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 - **Branch:** feat/binding-rules-from-env
 - **Blocked by:** 16, M3
 - **Goal:** `rules_from_env` can be tested although its shape is environment in and `Rules` out, not input to Decision.
-- **Scope:** A Binding where the overrides are environment variables and the actual outcome is the resulting configuration. Expected Outcome as defined in `CONTEXT.md` is a status plus Outcome Keys, which does not describe a configuration. The first step of this ticket is to propose an extension (for example an optional map of values), get it approved, and update `CONTEXT.md` and the wire format. Only then the Binding.
-- **Out of scope:** The Gold Test Design (M4).
+- **Scope:** A Binding where the overrides are environment variables and the actual outcome is the resulting configuration, reported through the `values` field of Expected Outcome (ADR 0004). The field already exists in the schema from ticket 07. This target needs no SUT Config, since the target is the configuration, so its Manifest entry has none.
+- **Out of scope:** Changes to the Expected Outcome schema, the Gold Test Design (M4).
 - **Acceptance criteria:**
-  - [ ] The approved Expected Outcome extension is in `CONTEXT.md` and the schema.
   - [ ] Defaults, overrides and an empty `BLOCKED_COUNTRIES` are covered.
+  - [ ] Values are compared by exact equality, including `Decimal` thresholds.
   - [ ] A malformed number is reported as an outcome and does not crash the runner.
-- **Tests first:** Each acceptance case, and schema validation of the extension.
+- **Tests first:** Each acceptance case.
 
 ### 29: render Binding
 
@@ -573,7 +601,7 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 - **Branch:** feat/binding-render
 - **Blocked by:** 16, M3
 - **Goal:** Test Cases for `render` run through the Validity Run. There is no Mutation Run, because `render` is outside `domain/`.
-- **Scope:** A Binding that builds records from overrides and compares the CSV text with the expected values, using the same Expected Outcome extension as ticket 28.
+- **Scope:** A Binding that builds records from overrides and compares the CSV text with the expected values, using the `values` field of Expected Outcome like ticket 28.
 - **Out of scope:** Mutation Run, the Gold Test Design (M4).
 - **Acceptance criteria:**
   - [ ] Amount formatting and empty optional fields are covered.
@@ -628,7 +656,7 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 - **Status:** todo
 - **Owner:** agent
 - **Branch:** chore/prompt-tuning
-- **Blocked by:** 23, 28, 29, 30, 31
+- **Blocked by:** 13, 23, 28, 29, 30, 31
 - **Goal:** Prompts reach a stable state using Dev Stories only.
 - **Scope:** Prompts stored as versioned files in the repo. A log in `docs/prompt-tuning.md` with each version and its Dev results (Invalid Rate, AC Coverage, Failure Rate). The prompt version is part of the fixture key through the prompt text. Tuning commands refuse held-out Stories. The maintainer runs the models locally and reviews the log.
 - **Out of scope:** Held-out Stories, changing schemas.
@@ -643,9 +671,9 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 - **Status:** todo
 - **Owner:** agent
 - **Branch:** chore/spike-30b-wallclock
-- **Blocked by:** 11, 23
+- **Blocked by:** 11, 12a, 23
 - **Goal:** Fix the size of the matrix from a measurement (ADR 0007).
-- **Scope:** Run Pipeline with Critic on one Dev Story with the ~30B model and measure wall-clock, tokens and memory. Work out the time for the planned matrix and choose the number of Stories, repeats and models. Write it to `docs/spikes/30b-wallclock.md` and update ADR 0007 if the matrix changes.
+- **Scope:** Run Pipeline with Critic on one Dev Story with the ~30B Provider Profile and measure wall-clock, tokens and memory. Work out the time for the planned matrix and choose the number of Stories, repeats and models. Write it to `docs/spikes/30b-wallclock.md` and update ADR 0007 if the matrix changes.
 - **Out of scope:** The runner.
 - **Acceptance criteria:**
   - [ ] The note has measured numbers and the chosen matrix size with the arithmetic.
@@ -658,7 +686,7 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 - **Branch:** feat/eval-matrix
 - **Blocked by:** 23, 31, 33
 - **Goal:** `eval run` executes Variants, models, Stories and repeats and stores every result.
-- **Scope:** Cells of Variant, model, Story and seed. Repeats use temperature 0.3 with distinct seeds. One JSONL line per cell with metrics and mutation results. Finished cells are skipped on a rerun. Cloud cells run once and are marked. Mutation Run only for Stories with a target under `domain/`, Validity Run only for the others, none for Gap-probe Stories.
+- **Scope:** Cells of Variant, Provider Profile, Story and seed. Repeats use temperature 0.3 with distinct seeds. One JSONL line per cell with metrics and mutation results. Finished cells are skipped on a rerun. Cloud cells run once and are marked. Mutation Run only for Stories with a target under `domain/`, Validity Run only for the others, none for Gap-probe Stories.
 - **Out of scope:** The report, the real runs.
 - **Acceptance criteria:**
   - [ ] The number of cells equals the product of the matrix dimensions.
@@ -689,10 +717,10 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 - **Branch:** chore/eval-freeze-v1
 - **Blocked by:** 18, M4, 32, 33
 - **Goal:** Everything the eval depends on is fixed before any held-out run (ADRs 0006 and 0007).
-- **Scope:** Review the candidates for Equivalent Mutants and list the Unreachable Mutants. Choose the cloud provider and the final model tags. Freeze the prompt versions. Complete the pre-freeze changelog. After the merge, tag `eval-freeze-v1`.
+- **Scope:** Review the candidates for Equivalent Mutants and list the Unreachable Mutants. Choose the cloud provider and set the final Provider Profiles with their model tags. Freeze the prompt versions. Check that the Manifest pins the SUT commit SHA. Complete the pre-freeze changelog. After the merge, tag `eval-freeze-v1`.
 - **Out of scope:** Any held-out run.
 - **Acceptance criteria:**
-  - [ ] The two mutant lists, the model tags and the prompt versions are committed.
+  - [ ] The two mutant lists, the Provider Profiles, the prompt versions and the SUT SHA are committed.
   - [ ] The tag exists on the merge commit.
 - **Tests first:** None.
 
@@ -703,7 +731,7 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 - **Branch:** chore/eval-results
 - **Blocked by:** 24, 35, M5
 - **Goal:** The numbers that the README reports.
-- **Scope:** A guard that refuses held-out runs unless the tag exists and `eval/` is unchanged since it. The runs themselves: three local models on all Variants, and the cloud model once. The maintainer starts them locally. Results and the generated report are committed.
+- **Scope:** A guard that refuses held-out runs unless the tag exists and `eval/` is unchanged since it. The runs themselves: the three local Provider Profiles on all Variants, and the cloud profile once. The maintainer starts them locally. Results and the generated report are committed.
 - **Out of scope:** Changing any frozen input.
 - **Acceptance criteria:**
   - [ ] The guard fails without the tag and on a modified corpus.
