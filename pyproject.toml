@@ -9,6 +9,9 @@ dependencies = [
     "pyyaml==6.0.3",
 ]
 
+[project.scripts]
+atda = "atda.adapters.cli:main"
+
 [dependency-groups]
 dev = [
     "pytest==9.1.1",

@@ -1,4 +1,6 @@
 import json
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -117,3 +119,17 @@ def test_a_missing_context_option_is_a_usage_error(story: Path) -> None:
         main(["design", str(story)])
 
     assert exit_info.value.code == 2
+
+
+def test_the_atda_script_runs_the_design_command(story: Path, context: Path) -> None:
+    script = Path(sys.executable).parent / "atda"
+
+    result = subprocess.run(
+        [str(script), "design", str(story), "--context", str(context)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0
+    assert json.loads(result.stdout)["story"]["id"] == "S-1"
