@@ -12,6 +12,7 @@ from pydantic import (
 )
 
 from atda.schemas.strict_yaml import load_yaml
+from atda.schemas.validation import format_validation_error
 
 Scalar = StrictStr | StrictInt | StrictFloat | StrictBool
 
@@ -46,8 +47,4 @@ def parse_test_context(source: str, name: str) -> TestContext:
     try:
         return TestContext.model_validate(raw)
     except ValidationError as error:
-        problems = "; ".join(
-            f"{'.'.join(str(part) for part in problem['loc'])}: {problem['msg']}"
-            for problem in error.errors()
-        )
-        raise TestContextError(f"{name}: {problems}") from error
+        raise TestContextError(f"{name}: {format_validation_error(error)}") from error
