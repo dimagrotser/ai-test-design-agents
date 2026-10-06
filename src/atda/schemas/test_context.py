@@ -3,18 +3,14 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
-    StrictBool,
-    StrictFloat,
-    StrictInt,
     StrictStr,
     ValidationError,
     field_validator,
 )
 
+from atda.schemas.scalar import Scalar
 from atda.schemas.strict_yaml import load_yaml
 from atda.schemas.validation import format_validation_error
-
-Scalar = StrictStr | StrictInt | StrictFloat | StrictBool
 
 
 class TestContextError(ValueError):
