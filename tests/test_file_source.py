@@ -68,3 +68,19 @@ def test_a_malformed_test_context_file_is_reported_with_its_path(tmp_path: Path)
 
     with pytest.raises(TestContextError, match="broken.yaml"):
         load_test_context(path)
+
+
+def test_a_story_file_that_is_not_utf8_is_reported_with_its_path(tmp_path: Path) -> None:
+    path = tmp_path / "binary.md"
+    path.write_bytes(b"\xff\xfe\x00 not text")
+
+    with pytest.raises(StoryFormatError, match="binary.md: not valid UTF-8"):
+        FileSource().load(str(path))
+
+
+def test_a_test_context_file_that_is_not_utf8_is_reported_with_its_path(tmp_path: Path) -> None:
+    path = tmp_path / "binary.yaml"
+    path.write_bytes(b"\xff\xfe\x00 not text")
+
+    with pytest.raises(TestContextError, match="binary.yaml: not valid UTF-8"):
+        load_test_context(path)
