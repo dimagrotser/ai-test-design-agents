@@ -20,5 +20,19 @@ dev = [
 requires = ["uv_build==0.11.6"]
 build-backend = "uv_build"
 
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.mypy]
+strict = true
+files = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
 [tool.uv.build-backend]
 module-name = "atda"
