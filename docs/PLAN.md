@@ -106,7 +106,7 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 
 ### 02: Spike: mutmut and pytest in the SUT environment
 
-- **Status:** todo
+- **Status:** done
 - **Owner:** agent
 - **Branch:** chore/spike-mutmut-sut
 - **Blocked by:** 01

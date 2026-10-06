@@ -6,4 +6,4 @@ The executor consumes structured Test Cases, not generated code. Kill Rate there
 
 ## Consequences
 
-The Binding runs under the SUT's Python 3.13, so the Binding and the Test Case wire format must be stdlib-only, with no imports from this project and no pydantic. The alternative is to install those dependencies into the runner environment. The mutmut spike decides which one, and also confirms that mutmut works with Python 3.13 and that pytest is available in the SUT environment. Process start adds latency to every run, which is acceptable at this corpus size.
+The Binding runs under the SUT's Python 3.13, so the Binding and the Test Case wire format are stdlib-only, with no imports from this project and no pydantic. Installing this project into the runner environment is technically possible, since `uv run --with` ignores `requires-python`, but it would change the SUT's locked environment and run code written for 3.12 on 3.13. The spike (`docs/spikes/mutmut-sut.md`) also confirmed that mutmut 3.8.0 works with Python 3.13 and that pytest is available in the SUT environment. Process start adds latency to every run, which is acceptable at this corpus size.
