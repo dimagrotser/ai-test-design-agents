@@ -41,7 +41,7 @@ One valid, unremarkable input for a target, defined by the Test Context. A Test 
 _Avoid_: Default input, happy path
 
 **Expected Outcome**:
-The result a Test Case predicts, written in the vocabulary of the Story as a status plus a set of Outcome Keys. It never refers to code-level names.
+The result a Test Case predicts, written in the vocabulary of the Story as a status plus a set of Outcome Keys, and optionally named scalar values compared by exact equality. It never refers to code-level names.
 _Avoid_: Oracle value, assertion
 
 **Outcome Key**:
@@ -84,6 +84,10 @@ _Avoid_: Worker, step
 One way to produce a Test Design that the eval compares: Single Prompt (one LLM call, then the same deterministic code), Pipeline (Requirements Analyst, Test Designer, Risk Prioritizer), and Pipeline with Critic. The Code Generator is outside the Variants.
 _Avoid_: Mode, configuration
 
+**Provider Profile**:
+A named set of settings for one model on one provider: adapter, endpoint, model tag, structured-output mechanism, context size, timeout, and whether it runs locally or in the cloud. The eval refers to models only through Provider Profiles.
+_Avoid_: Model config, provider settings
+
 **Structured Generation**:
 One LLM call whose output is validated against a Pydantic schema and retried with the validation error text, up to a bounded number of attempts. If all attempts fail, the raised exception carries the attempt history; this is separate from the Refinement Loop, which reruns a successful stage.
 _Avoid_: Parsing, output fixing
@@ -95,7 +99,7 @@ The codebase whose behavior the Test Designs describe, here the `event-driven-pa
 _Avoid_: Target app, subject
 
 **Corpus Manifest**:
-A file that maps each eval Story to its Test Context file, SUT Config, split and class. Agents see only the Test Context taken from it, never the split, class or SUT Config.
+A file that maps each eval Story to its Test Context file, SUT Config, split and class, and pins the SUT commit SHA. Agents see only the Test Context taken from it, never the split, class or SUT Config.
 _Avoid_: Config, index
 
 **Dev Story**, **Held-out Story**:
@@ -111,7 +115,7 @@ A Story about a toy function outside the SUT, used for tuning when no real targe
 _Avoid_: Mock story
 
 **Eval Freeze**:
-The git tag `eval-freeze-v1`, placed after the last edit of Stories, Manifest, Gold Test Designs, Bindings, the Test Context files and the lists of Equivalent and Unreachable Mutants. Nothing in the eval corpus changes after it.
+The git tag `eval-freeze-v1`, placed after the last edit of Stories, Manifest, Gold Test Designs, Bindings, the Test Context files, the lists of Equivalent and Unreachable Mutants, the Provider Profiles and the prompt versions. Nothing in the eval corpus changes after it.
 _Avoid_: Snapshot, release
 
 **Gold Test Design**:
