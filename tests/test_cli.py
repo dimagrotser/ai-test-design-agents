@@ -16,24 +16,42 @@ Some text.
 
 ## Acceptance criteria
 
-- AC-1: Something holds.
+- AC-1: An amount over 10 000 is rejected.
 - AC-2: Something else holds.
 """
 
 CONTEXT = """\
 target: some.target
 nominal_input:
-  amount: 1
-outcome_keys: [ok]
+  amount: "100"
+statuses: [approved, rejected]
+outcome_keys: [amount_limit]
 """
 
-ANSWER = json.dumps(
+ANALYST = json.dumps(
     {
         "requirements": [
-            {"ac_id": "AC-1", "text": "Something holds."},
+            {"ac_id": "AC-1", "text": "An amount over 10000 is rejected."},
             {"ac_id": "AC-2", "text": "Something else holds."},
         ],
         "gaps": [{"ac_id": None, "text": "The story does not say when."}],
+    }
+)
+DESIGNER = json.dumps(
+    {
+        "conditions": [
+            {
+                "technique": "BVA",
+                "requirement_id": "S-1.R1",
+                "input_name": "amount",
+                "evidence": "over 10 000",
+                "operator": ">",
+                "boundary": "10000",
+                "value_type": "decimal",
+                "outcome_if_true": {"status": "rejected", "outcome_keys": ["amount_limit"]},
+                "outcome_if_false": {"status": "approved", "outcome_keys": []},
+            }
+        ]
     }
 )
 
@@ -55,7 +73,7 @@ def context(tmp_path: Path) -> Path:
 @pytest.fixture
 def responses(tmp_path: Path) -> Path:
     path = tmp_path / "responses.json"
-    path.write_text(json.dumps([ANSWER]))
+    path.write_text(json.dumps([ANALYST, DESIGNER]))
     return path
 
 
@@ -80,6 +98,11 @@ def test_design_prints_the_inputs_requirements_and_gaps_as_json(
         ("S-1.R2", "AC-2"),
     ]
     assert printed["gaps"] == [{"ac_id": None, "text": "The story does not say when."}]
+    assert [c["overrides"]["amount"] for c in printed["test_cases"]] == [
+        "9999.99",
+        "10000",
+        "10000.01",
+    ]
 
 
 def test_a_missing_story_file_exits_with_2_and_names_the_path(
@@ -175,6 +198,19 @@ def test_too_few_scripted_answers_exit_with_2(
     empty.write_text("[]")
 
     code = main(design(story, context, empty))
+
+    captured = capsys.readouterr()
+    assert code == 2
+    assert "no scripted response left" in captured.err
+
+
+def test_a_script_with_only_the_analysts_answer_exits_with_2(
+    tmp_path: Path, story: Path, context: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    short = tmp_path / "short.json"
+    short.write_text(json.dumps([ANALYST]))
+
+    code = main(design(story, context, short))
 
     captured = capsys.readouterr()
     assert code == 2

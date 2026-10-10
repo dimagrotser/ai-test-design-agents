@@ -9,6 +9,9 @@ nominal_input:
   currency: EUR
   country: DE
   recent_transactions: 0
+statuses:
+  - approved
+  - rejected
 outcome_keys:
   - amount_limit
   - blocked_country
@@ -27,6 +30,7 @@ def test_context_keeps_target_nominal_input_and_outcome_keys() -> None:
             "country": "DE",
             "recent_transactions": 0,
         },
+        statuses=("approved", "rejected"),
         outcome_keys=("amount_limit", "blocked_country", "velocity"),
     )
 
@@ -42,6 +46,9 @@ def test_an_unquoted_country_code_stays_text() -> None:
     [
         (VALID.replace("target: fraud.evaluate\n", ""), "target"),
         (VALID.replace("nominal_input:", "nominal:"), "nominal_input"),
+        (VALID.replace("statuses:\n  - approved\n  - rejected\n", ""), "statuses"),
+        (VALID.replace("  - approved\n  - rejected\n", "  []\n"), "statuses"),
+        (VALID.replace("  - rejected\n", "  - approved\n"), "duplicate status approved"),
         (VALID.split("outcome_keys:")[0], "outcome_keys"),
         (VALID.split("outcome_keys:")[0] + "outcome_keys: []\n", "outcome_keys"),
         (VALID + "  - velocity\n", "duplicate outcome key velocity"),
