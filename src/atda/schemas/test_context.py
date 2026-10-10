@@ -5,6 +5,7 @@ from pydantic import (
     Field,
     StrictStr,
     ValidationError,
+    ValidationInfo,
     field_validator,
 )
 
@@ -22,15 +23,17 @@ class TestContext(BaseModel):
 
     target: StrictStr = Field(min_length=1)
     nominal_input: dict[str, Scalar]
+    statuses: tuple[StrictStr, ...] = Field(min_length=1)
     outcome_keys: tuple[StrictStr, ...] = Field(min_length=1)
 
-    @field_validator("outcome_keys")
+    @field_validator("statuses", "outcome_keys")
     @classmethod
-    def _keys_are_unique(cls, keys: tuple[str, ...]) -> tuple[str, ...]:
-        for key in keys:
-            if keys.count(key) > 1:
-                raise ValueError(f"duplicate outcome key {key}")
-        return keys
+    def _names_are_unique(cls, names: tuple[str, ...], info: ValidationInfo) -> tuple[str, ...]:
+        label = "status" if info.field_name == "statuses" else "outcome key"
+        for name in names:
+            if names.count(name) > 1:
+                raise ValueError(f"duplicate {label} {name}")
+        return names
 
 
 def parse_test_context(source: str, name: str) -> TestContext:

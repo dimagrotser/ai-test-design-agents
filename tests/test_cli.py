@@ -24,6 +24,7 @@ CONTEXT = """\
 target: some.target
 nominal_input:
   amount: 1
+statuses: [done]
 outcome_keys: [ok]
 """
 

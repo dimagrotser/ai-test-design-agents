@@ -49,7 +49,7 @@ A name for one business rule that can decide an outcome, such as `amount_limit`.
 _Avoid_: Rule, reason code
 
 **Test Context**:
-The data an executor needs and a real Story does not contain: the target, the Nominal Input and the Outcome Keys. It is mandatory in v1 and is a standalone file, which the Corpus Manifest references in the eval.
+The data an executor needs and a real Story does not contain: the target, the Nominal Input, the statuses an outcome may have and the Outcome Keys. It is mandatory in v1 and is a standalone file, which the Corpus Manifest references in the eval.
 _Avoid_: Fixture, metadata
 
 **Priority**:
