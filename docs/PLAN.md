@@ -83,10 +83,10 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 - **Scope:** `pyproject.toml` for Python 3.12 with pinned pydantic, pyyaml, pytest, ruff and mypy. `src/atda/` with an empty package. Ruff config. `mypy --strict` on `src/`. One smoke test. GitHub Actions workflow with jobs lint, typecheck and tests, run in that order. `uv.lock`. A README stub of one paragraph.
 - **Out of scope:** Any domain code, ports, mutmut, README content beyond the stub.
 - **Acceptance criteria:**
-  - [ ] On a fresh clone, `uv sync && uv run pytest` passes.
-  - [ ] The workflow runs lint, then typecheck, then tests, and fails if any step fails.
-  - [ ] Mypy strict applies to `src/` only.
-  - [ ] All dependency versions are pinned.
+  - [x] On a fresh clone, `uv sync && uv run pytest` passes.
+  - [x] The workflow runs lint, then typecheck, then tests, and fails if any step fails.
+  - [x] Mypy strict applies to `src/` only.
+  - [x] All dependency versions are pinned.
 - **Tests first:** `atda` imports. The workflow is checked by opening the PR.
 
 ### 01a: LLMClient port and import-rule test
@@ -99,9 +99,9 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 - **Scope:** `LLMClient` as a `typing.Protocol`, with `LLMRequest` (messages, optional JSON schema, temperature, seed, context size) and `LLMResponse` (text, input and output token counts) as Pydantic models. A test that parses the modules under `src/atda/` outside `adapters/` and fails on any import from `atda.adapters`.
 - **Out of scope:** `RequirementsSource` (ticket 03), any adapter, FakeLLMClient (ticket 05).
 - **Acceptance criteria:**
-  - [ ] The import-rule test passes on the real tree.
-  - [ ] The same check fails on a temporary tree where a core module imports from `adapters/`.
-  - [ ] The checker handles `import x` and `from x import y` forms.
+  - [x] The import-rule test passes on the real tree.
+  - [x] The same check fails on a temporary tree where a core module imports from `adapters/`.
+  - [x] The checker handles `import x` and `from x import y` forms.
 - **Tests first:** A violating temporary package is reported with file and line. A clean package is accepted. The real tree is clean.
 
 ### 02: Spike: mutmut and pytest in the SUT environment
@@ -114,9 +114,9 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 - **Scope:** On a copy of the SUT, check that `uv run --project` works with its Python 3.13, that pytest is available in the SUT environment, that mutmut runs on `src/payments/domain` against the 33 existing unit tests, how long a full run takes, how many mutants each target file produces, and whether mutmut can be limited to chosen functions. Check that importing `payments.reporter.handler` has no side effects. Decide whether the Binding and the Test Case wire format are stdlib-only or whether dependencies are installed into the runner environment. Write the findings to `docs/spikes/mutmut-sut.md` and amend ADR 0005 if the decision changes it.
 - **Out of scope:** Binding code, Mutation Run code, any change to the SUT repository.
 - **Acceptance criteria:**
-  - [ ] The note answers each question above with the command used and the output that supports it.
-  - [ ] The stdlib-only decision is stated in one sentence.
-  - [ ] The SUT repository has no changes (`git status` clean there).
+  - [x] The note answers each question above with the command used and the output that supports it.
+  - [x] The stdlib-only decision is stated in one sentence.
+  - [x] The SUT repository has no changes (`git status` clean there).
 - **Tests first:** None. The acceptance criteria are the checks.
 
 ### 03: Story, Test Context and FileSource
@@ -129,10 +129,10 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 - **Scope:** `Story` model (id, title, text, Acceptance Criteria with ids). Parser for front matter with `id` and `title`, free text, and a `## Acceptance criteria` section with `- AC-n: ...` lines. `TestContext` model (target, Nominal Input, Outcome Keys) loaded from YAML. `RequirementsSource` as a `typing.Protocol`. `FileSource` in `adapters/`.
 - **Out of scope:** Corpus Manifest, GitHubIssuesSource, JiraSource, the CLI.
 - **Acceptance criteria:**
-  - [ ] A valid Story file yields a `Story` with every AC and its id.
-  - [ ] Duplicate AC ids, a missing `## Acceptance criteria` section and a missing `id` each fail with a message that names the file and the problem.
-  - [ ] A Test Context without a target or without Outcome Keys is rejected.
-  - [ ] `FileSource` satisfies `RequirementsSource` under mypy.
+  - [x] A valid Story file yields a `Story` with every AC and its id.
+  - [x] Duplicate AC ids, a missing `## Acceptance criteria` section and a missing `id` each fail with a message that names the file and the problem.
+  - [x] A Test Context without a target or without Outcome Keys is rejected.
+  - [x] `FileSource` satisfies `RequirementsSource` under mypy.
 - **Tests first:** Parsing of front matter and AC lines. Each rejection case. Protocol conformance.
 
 ### 04: `design` command skeleton
@@ -145,8 +145,8 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 - **Scope:** Entry point with an argparse subcommand `design <story> --context <file>`. It loads both files through `FileSource` and prints the validated inputs as JSON. Exit code 2 and a one-line message on invalid input.
 - **Out of scope:** Agents, LLM selection flags, `eval` and `record` subcommands.
 - **Acceptance criteria:**
-  - [ ] `uv run <entry point> design story.md --context ctx.yaml` prints JSON for valid files.
-  - [ ] Invalid input exits with 2 and prints the cause on stderr.
+  - [x] `uv run <entry point> design story.md --context ctx.yaml` prints JSON for valid files.
+  - [x] Invalid input exits with 2 and prints the cause on stderr.
 - **Tests first:** Valid run returns exit 0 and parseable JSON. Missing file, bad Story and bad Test Context each return exit 2.
 
 ### 05: Structured Generation and FakeLLMClient
@@ -159,10 +159,10 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 - **Scope:** A `generate` function that takes a client, a request, a model type and a maximum number of attempts. On a validation or JSON error it retries with the error text appended to the prompt. After the last attempt it raises `StructuredGenerationError` carrying the history of every attempt (raw text and error). `FakeLLMClient` with scripted responses that records the requests it received. Token counts are summed over attempts.
 - **Out of scope:** Real adapters, passing the JSON schema to a provider, semantic checks beyond Pydantic validators.
 - **Acceptance criteria:**
-  - [ ] A valid first response returns the model with one attempt.
-  - [ ] A failing response is retried and the second request contains the error text.
-  - [ ] After the maximum number of attempts the exception contains all attempts in order.
-  - [ ] Output that is not JSON counts as a failed attempt.
+  - [x] A valid first response returns the model with one attempt.
+  - [x] A failing response is retried and the second request contains the error text.
+  - [x] After the maximum number of attempts the exception contains all attempts in order.
+  - [x] Output that is not JSON counts as a failed attempt.
 - **Tests first:** Each criterion above, plus summed token counts.
 
 ### M1: Synthetic Story and its Test Context
@@ -189,10 +189,10 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 - **Scope:** `Requirement` and `Gap` models. An `analyze` function that asks the model, through Structured Generation, for requirement texts linked to AC ids and for Gaps. Code assigns Requirement ids (`<story id>.R<n>`, in order). A response that names an unknown AC id fails validation and is retried with the error text. The prompt is a separate file. The pipeline function and the `design` output include Requirements and Gaps.
 - **Out of scope:** Selecting a real client from the CLI (tickets 12 and 13), Test Conditions, risk scores.
 - **Acceptance criteria:**
-  - [ ] Requirement ids are unique, stable across reruns of the same response, and assigned by code.
-  - [ ] A Requirement that links to a non-existent AC is rejected and retried.
-  - [ ] One AC may produce several Requirements.
-  - [ ] A Gap may refer to the Story or to an AC.
+  - [x] Requirement ids are unique, stable across reruns of the same response, and assigned by code.
+  - [x] A Requirement that links to a non-existent AC is rejected and retried.
+  - [x] One AC may produce several Requirements.
+  - [x] A Gap may refer to the Story or to an AC.
 - **Tests first:** Id assignment from a scripted response. Unknown AC id triggers a retry with the error in the prompt. One AC to many Requirements. Gap reference validation.
 
 ### 07: Test Condition schema and EP/BVA expansion
@@ -205,12 +205,12 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 - **Scope:** `TestCondition`, `TestCase` and `TestDesign` models. A BVA condition has a field, a boundary, an operator from a closed enum and Expected Outcomes on each side, plus a verbatim evidence quote. An EP condition has classes with Expected Outcomes. Expansion code: three BVA points around a boundary with a step by type (`Decimal` 0.01, `int` 1), EP representatives (every member of a small enumerated class, otherwise the given representative), overrides merged onto the Nominal Input. Every Test Case records its Technique, a rationale and its Requirement and AC links. Expected Outcome has the optional `values` field from ADR 0004 (name to scalar, closed set of types, exact equality). It is part of the schema now and unused until ticket 28, so the schema and the Replay Fixtures stay stable.
 - **Out of scope:** Decision Table, duplicate merge, the LLM agent, the evidence check against the Story text, any use of `values`.
 - **Acceptance criteria:**
-  - [ ] A `>` boundary at 10000 expands to 9999.99, 10000 and 10000.01 with the outcomes the operator implies.
-  - [ ] A `>=` boundary at 5 expands to 4, 5 and 6.
-  - [ ] An enumerated class of three members plus one other class gives four Test Cases.
-  - [ ] Output order and ids are deterministic.
-  - [ ] A condition with no operator is rejected by the schema.
-  - [ ] An Expected Outcome without `values` is valid, and `values` accepts only the closed set of scalar types.
+  - [x] A `>` boundary at 10000 expands to 9999.99, 10000 and 10000.01 with the outcomes the operator implies.
+  - [x] A `>=` boundary at 5 expands to 4, 5 and 6.
+  - [x] An enumerated class of three members plus one other class gives four Test Cases.
+  - [x] Output order and ids are deterministic.
+  - [x] A condition with no operator is rejected by the schema.
+  - [x] An Expected Outcome without `values` is valid, and `values` accepts only the closed set of scalar types.
 - **Tests first:** One table-driven test per operator. EP enumeration. Determinism. Schema rejection. Accepted and rejected types for `values`.
 
 ### 08: Test Designer agent with evidence check
@@ -223,10 +223,10 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 - **Scope:** A `design_tests` function that asks the model for Test Conditions per Requirement through Structured Generation. Code checks that each evidence quote is a substring of the AC text and that every Expected Outcome uses an Outcome Key from the Test Context. A failed check is retried with the error text. Expansion comes from ticket 07. The prompt is a separate file. The `design` output includes the Test Design.
 - **Out of scope:** Decision Table, risk scores, the Critic, a real client.
 - **Acceptance criteria:**
-  - [ ] Evidence that does not occur in the AC text is rejected and retried.
-  - [ ] An Outcome Key outside the Test Context is rejected and retried.
-  - [ ] A scripted valid response yields the expected Test Cases through the whole pipeline.
-  - [ ] A Gap from the Analyst is carried into the Test Design unchanged.
+  - [x] Evidence that does not occur in the AC text is rejected and retried.
+  - [x] An Outcome Key outside the Test Context is rejected and retried.
+  - [x] A scripted valid response yields the expected Test Cases through the whole pipeline.
+  - [x] A Gap from the Analyst is carried into the Test Design unchanged.
 - **Tests first:** Evidence mismatch. Unknown Outcome Key. End-to-end with a scripted BVA condition. Gap pass-through.
 
 ### 09: Decision Table expansion and duplicate merge
@@ -239,11 +239,11 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 - **Scope:** Decision Table condition (up to four boolean conditions, outcome as the union of Outcome Keys). A row sets an input to the boundary point that breaks its rule and leaves every other input at its Nominal value; the values come from the related BVA and EP conditions. Normalized input for comparison (Decimal normalized, sets sorted). Duplicate Ratio computed before merge and stored on the Test Design. Exact duplicates merge into one Test Case with several Requirement and AC links. Two Test Cases with the same input and different outcomes are not merged and are returned as Contradictions.
 - **Out of scope:** Turning Contradictions into Findings (ticket 21), semantic redundancy.
 - **Acceptance criteria:**
-  - [ ] A row of a three-condition table with a single broken rule merges with the matching BVA case, and the merged case keeps both Requirement links.
-  - [ ] Duplicate Ratio equals one minus unique over total, taken before the merge.
-  - [ ] `Decimal("10000.0")` and `Decimal("10000")` count as the same input.
-  - [ ] A Contradiction is reported and both cases are kept.
-  - [ ] More than four conditions are rejected.
+  - [x] A row of a three-condition table with a single broken rule merges with the matching BVA case, and the merged case keeps both Requirement links.
+  - [x] Duplicate Ratio equals one minus unique over total, taken before the merge.
+  - [x] `Decimal("10000.0")` and `Decimal("10000")` count as the same input.
+  - [x] A Contradiction is reported and both cases are kept.
+  - [x] More than four conditions are rejected.
 - **Tests first:** The all-false row merge. The ratio arithmetic. Normalization. Contradiction. The condition limit.
 
 ### 10: Test Design report
@@ -256,9 +256,9 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 - **Scope:** `test-design.json` as the canonical artifact. `test-design.md` with Requirements, Gaps, Test Cases, and a matrix from AC to Requirement to Test Case. Both files are produced by code, with no LLM.
 - **Out of scope:** Priorities (ticket 20), other formats, TMS export.
 - **Acceptance criteria:**
-  - [ ] The JSON loads back into `TestDesign` without change.
-  - [ ] The matrix lists every AC, and an AC without Test Cases is marked as uncovered.
-  - [ ] The output is byte-identical for the same input.
+  - [x] The JSON loads back into `TestDesign` without change.
+  - [x] The matrix lists every AC, and an AC without Test Cases is marked as uncovered.
+  - [x] The output is byte-identical for the same input.
 - **Tests first:** JSON round trip. An uncovered AC in the matrix. Golden Markdown file.
 
 ### 11: Ollama setup (checklist, no PR)
@@ -357,10 +357,10 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 - **Scope:** `CorpusManifest` model: per Story the Test Context file, SUT Config, split (dev or held-out) and class (normal or Gap-probe), plus the SUT commit SHA, which must be a full SHA and never a branch name. A function that returns the agent view of a Story, containing the Story and its Test Context only. A guard, `require_dev`, that refuses held-out Stories, for the `record` command of ticket 13 to call.
 - **Out of scope:** Manifest content (M2, M3), the eval commands.
 - **Acceptance criteria:**
-  - [ ] The agent view has no field for SUT Config, split or class.
-  - [ ] A missing Test Context file, an unknown split or an unknown class is rejected with a clear message.
-  - [ ] A SUT reference that is not a full commit SHA, such as `main` or an abbreviated hash, is rejected.
-  - [ ] `require_dev` refuses a held-out Story and an unknown id, and accepts a dev Story.
+  - [x] The agent view has no field for SUT Config, split or class.
+  - [x] A missing Test Context file, an unknown split or an unknown class is rejected with a clear message.
+  - [x] A SUT reference that is not a full commit SHA, such as `main` or an abbreviated hash, is rejected.
+  - [x] `require_dev` refuses a held-out Story and an unknown id, and accepts a dev Story.
 - **Tests first:** Valid manifest. Each rejection, including the branch name as SUT reference. The agent view type check. The `require_dev` guard.
 
 ### M2: FRAUD Story, Test Context, SUT Config, Gold Test Design
@@ -455,9 +455,9 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 - **Scope:** The model scores likelihood and impact from 1 to 3 for each Requirement through Structured Generation. Code maps the pair to a Priority with an explicit 3 by 3 lookup table, not a formula. The table is: P1 for likelihood times impact of 6 or 9, P2 for 3 or 4, and P3 for 1 or 2, written out cell by cell. A Test Case takes the highest Priority of its Requirements. The report gets a Priority column.
 - **Out of scope:** Using Priority to order or filter Test Cases.
 - **Acceptance criteria:**
-  - [ ] Each of the nine likelihood and impact cells maps to its Priority through the lookup table.
-  - [ ] A merged Test Case takes the highest Priority of its Requirements.
-  - [ ] A score outside 1 to 3 is rejected and retried.
+  - [x] Each of the nine likelihood and impact cells maps to its Priority through the lookup table.
+  - [x] A merged Test Case takes the highest Priority of its Requirements.
+  - [x] A score outside 1 to 3 is rejected and retried.
 - **Tests first:** One test per table cell, nine in all. Merged inheritance. Out-of-range retry.
 
 ### 21: Deterministic Findings
@@ -470,9 +470,9 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 - **Scope:** `Finding` model with type, severity and a reference. Checks for missing coverage of an AC or a Requirement, untraceable Test Cases, duplicates, Contradictions (blocking), and a deterministic operator check from a phrase lexicon (for example "over" and "exceeds" against `>`, "at least" and "or more" against `>=`) that warns when the chosen operator disagrees with the wording.
 - **Out of scope:** The LLM Critic, the loop.
 - **Acceptance criteria:**
-  - [ ] Each check has at least one passing and one failing case.
-  - [ ] Contradictions are blocking, the others are not.
-  - [ ] The lexicon is data, and adding a phrase needs no code change.
+  - [x] Each check has at least one passing and one failing case.
+  - [x] Contradictions are blocking, the others are not.
+  - [x] The lexicon is data, and adding a phrase needs no code change.
 - **Tests first:** Table-driven phrases against operators. Coverage gap. Untraceable case. Severity of each type.
 
 ### 22: Critic and Refinement Loop
@@ -485,10 +485,10 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 - **Scope:** A Critic agent for the semantic Finding types (wrong technique, vague expected result). A loop that merges deterministic and Critic Findings, passes blocking ones to the Test Designer only, and stops when none are left or after two iterations. The Analyst is never rerun.
 - **Out of scope:** Selecting Variants (ticket 23).
 - **Acceptance criteria:**
-  - [ ] The loop stops after two iterations even if blocking Findings remain.
-  - [ ] The Analyst is called once per Story.
-  - [ ] Requirement ids are identical before and after the loop.
-  - [ ] Finding text reaches the Designer prompt.
+  - [x] The loop stops after two iterations even if blocking Findings remain.
+  - [x] The Analyst is called once per Story.
+  - [x] Requirement ids are identical before and after the loop.
+  - [x] Finding text reaches the Designer prompt.
 - **Tests first:** Iteration limit. One analyst call. Id stability. Prompt content.
 
 ### 23: Variants
@@ -501,9 +501,9 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 - **Scope:** Single Prompt (one call returns Requirements, Test Conditions and risk scores), Pipeline (Analyst, Designer, Prioritizer) and Pipeline with Critic. A `--variant` option on `design`.
 - **Out of scope:** Raw Single Prompt, running the matrix.
 - **Acceptance criteria:**
-  - [ ] Single Prompt makes exactly one model call per Story when the first response is valid.
-  - [ ] Pipeline never calls the Critic.
-  - [ ] Given the same Test Conditions, all Variants produce identical Test Cases.
+  - [x] Single Prompt makes exactly one model call per Story when the first response is valid.
+  - [x] Pipeline never calls the Critic.
+  - [x] Given the same Test Conditions, all Variants produce identical Test Cases.
 - **Tests first:** Call counts per Variant. Equal expansion for equal conditions.
 
 ### 24: OpenAI-compatible client
@@ -547,8 +547,8 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 - **Scope:** `JiraSource` satisfies `RequirementsSource` and raises `NotImplementedError` with a clear message. A README line.
 - **Out of scope:** Any Jira API call.
 - **Acceptance criteria:**
-  - [ ] Calling it raises with the message that names the stub.
-  - [ ] It satisfies the Protocol under mypy.
+  - [x] Calling it raises with the message that names the stub.
+  - [x] It satisfies the Protocol under mypy.
 - **Tests first:** The raise. Protocol conformance.
 
 ### M3: Stories and Test Contexts for the remaining targets
