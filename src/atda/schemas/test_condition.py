@@ -77,4 +77,6 @@ class DecisionTableCondition(BaseModel):
         return inputs
 
 
-TestCondition = Annotated[BvaCondition | EpCondition, Field(discriminator="technique")]
+TestCondition = Annotated[
+    BvaCondition | EpCondition | DecisionTableCondition, Field(discriminator="technique")
+]

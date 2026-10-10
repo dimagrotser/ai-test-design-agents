@@ -161,3 +161,12 @@ def test_fewer_than_two_or_more_than_four_inputs_are_rejected(inputs: list[str])
 def test_a_decision_table_cannot_list_an_input_twice() -> None:
     with pytest.raises(ValidationError, match="duplicate input amount"):
         DecisionTableCondition.model_validate(changed(DT, inputs=["amount", "country", "amount"]))
+
+
+def test_a_decision_table_survives_a_json_round_trip_through_the_union() -> None:
+    parsed = condition.validate_python(DT)
+
+    again = condition.validate_json(condition.dump_json(parsed))
+
+    assert isinstance(again, DecisionTableCondition)
+    assert again == parsed

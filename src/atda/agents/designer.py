@@ -5,13 +5,15 @@ from typing import Self
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, model_validator
 
-from atda.expansion import expand
+from atda.expansion import expand, table_problems
+from atda.merge import merge_duplicates
 from atda.ports.llm import LLMClient, LLMRequest, Message
 from atda.prompts import load_prompt
 from atda.schemas.outcome import ExpectedOutcome
 from atda.schemas.requirements import Analysis
+from atda.schemas.scalar import Scalar
 from atda.schemas.story import Story
-from atda.schemas.test_condition import BvaCondition, TestCondition
+from atda.schemas.test_condition import BvaCondition, DecisionTableCondition, TestCondition
 from atda.schemas.test_context import TestContext
 from atda.schemas.test_design import TestDesign
 from atda.structured_generation import Generated, generate
@@ -22,7 +24,7 @@ class DesignFacts:
     """What a reply is checked against: the Story, the requirements and the Test Context."""
 
     ac_of: Mapping[str, tuple[str, str]]
-    input_names: tuple[str, ...]
+    nominal_input: Mapping[str, Scalar]
     statuses: tuple[str, ...]
     outcome_keys: tuple[str, ...]
 
@@ -42,6 +44,7 @@ class DesignerReply(BaseModel):
             for number, condition in enumerate(self.conditions, start=1)
             for problem in _problems(condition, number, facts)
         ]
+        problems += table_problems(self.conditions, facts.nominal_input)
         if problems:
             raise ValueError("; ".join(problems))
         return self
@@ -61,7 +64,7 @@ def design_tests(
     acs = {ac.id: ac.text for ac in story.acceptance_criteria}
     facts = DesignFacts(
         ac_of={r.id: (r.ac_id, acs[r.ac_id]) for r in analysis.requirements},
-        input_names=tuple(context.nominal_input),
+        nominal_input=context.nominal_input,
         statuses=context.statuses,
         outcome_keys=context.outcome_keys,
     )
@@ -76,11 +79,17 @@ def design_tests(
         num_ctx=num_ctx,
     )
     generated = generate(client, request, DesignerReply, max_attempts, {"facts": facts})
+    merged = merge_duplicates(
+        expand(generated.value.conditions, analysis.requirements, context.nominal_input),
+        context.nominal_input,
+    )
     design = TestDesign(
         story_id=story.id,
         requirements=analysis.requirements,
         gaps=analysis.gaps,
-        test_cases=expand(generated.value.conditions, analysis.requirements, context.nominal_input),
+        test_cases=merged.cases,
+        duplicate_ratio=merged.duplicate_ratio,
+        contradictions=merged.contradictions,
     )
     return Generated(
         value=design,
@@ -91,7 +100,12 @@ def design_tests(
 
 
 def _problems(condition: TestCondition, number: int, facts: DesignFacts) -> Iterator[str]:
-    label = f"condition {number} ({condition.technique.value} on {condition.input_name})"
+    subject = (
+        ", ".join(condition.inputs)
+        if isinstance(condition, DecisionTableCondition)
+        else condition.input_name
+    )
+    label = f"condition {number} ({condition.technique.value} on {subject})"
     if condition.requirement_id not in facts.ac_of:
         known = ", ".join(facts.ac_of)
         yield f"{label}: unknown requirement id {condition.requirement_id}; known ids: {known}"
@@ -102,8 +116,10 @@ def _problems(condition: TestCondition, number: int, facts: DesignFacts) -> Iter
                 f"{label}: evidence {condition.evidence!r} does not occur in the text of "
                 f"{ac_id}: {ac_text!r}"
             )
-    if condition.input_name not in facts.input_names:
-        known = ", ".join(facts.input_names)
+    if not isinstance(condition, DecisionTableCondition) and (
+        condition.input_name not in facts.nominal_input
+    ):
+        known = ", ".join(facts.nominal_input)
         yield f"{label}: input {condition.input_name} is not in the Nominal Input; known: {known}"
     for where, outcome in _outcomes(condition):
         if outcome.status not in facts.statuses:
@@ -121,6 +137,8 @@ def _outcomes(condition: TestCondition) -> list[tuple[str, ExpectedOutcome]]:
             ("outcome_if_true", condition.outcome_if_true),
             ("outcome_if_false", condition.outcome_if_false),
         ]
+    if isinstance(condition, DecisionTableCondition):
+        return []
     return [(f"class {c.name}", c.outcome) for c in condition.classes]
 
 
