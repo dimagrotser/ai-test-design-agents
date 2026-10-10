@@ -527,7 +527,7 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 
 ### 24: OpenAI-compatible client
 
-- **Status:** todo
+- **Status:** done
 - **Owner:** agent
 - **Branch:** feat/openai-compatible-client
 - **Blocked by:** 12a
@@ -535,9 +535,9 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 - **Scope:** `OpenAICompatibleClient` over `post_json`, configured by a cloud Provider Profile (base URL, model, key variable name). One example profile for a provider that offers a free tier. The API key is read from an environment variable and never printed or logged. Token counts from the response.
 - **Out of scope:** Choosing the provider and the model (M5), real network calls in tests.
 - **Acceptance criteria:**
-  - [ ] The payload and the authorization header are correct.
-  - [ ] A missing key raises an error that does not contain any key value.
-  - [ ] HTTP errors and timeouts are typed.
+  - [x] The payload and the authorization header are correct.
+  - [x] A missing key raises an error that does not contain any key value.
+  - [x] HTTP errors and timeouts are typed.
 - **Tests first:** All three, with the transport stubbed.
 
 ### 26: JiraSource stub
