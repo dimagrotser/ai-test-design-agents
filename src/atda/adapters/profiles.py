@@ -43,7 +43,7 @@ def profile_from_text(source: str, name: str) -> ProviderProfile:
     return profile
 
 
-def build_client(profile: ProviderProfile, *, transport: Transport = post_json) -> LLMClient:
+def build_client(profile: ProviderProfile, *, transport: Transport | None = None) -> LLMClient:
     # profile_from_text has checked the adapter, so anthropic is the only case so far.
     assert profile.key_variable is not None
     return AnthropicClient(
@@ -51,5 +51,5 @@ def build_client(profile: ProviderProfile, *, transport: Transport = post_json) 
         endpoint=profile.endpoint,
         key_variable=profile.key_variable,
         timeout=profile.timeout,
-        transport=transport,
+        transport=transport or post_json,
     )
