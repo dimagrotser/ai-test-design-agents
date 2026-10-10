@@ -1,11 +1,13 @@
 import json
 import subprocess
 import sys
+from collections.abc import Sequence
 from pathlib import Path
 
 import pytest
 
 from atda.adapters.cli import main
+from atda.adapters.http import HttpStatusError
 from atda.schemas.test_design import TestDesign
 
 STORY = """\
@@ -408,5 +410,152 @@ def test_a_variant_with_too_few_scripted_answers_exits_with_2(
 def test_an_unknown_variant_is_a_usage_error(story: Path, context: Path, responses: Path) -> None:
     with pytest.raises(SystemExit) as exit_info:
         main([*design(story, context, responses), "--variant", "everything"])
+
+    assert exit_info.value.code == 2
+
+
+PROFILE = "claude-sonnet-5-5"
+KEY = "sk-test-0123456789"
+
+
+def messages_api(answers: list[str]) -> list[dict[str, object]]:
+    return [
+        {
+            "content": [{"type": "text", "text": answer}],
+            "stop_reason": "end_turn",
+            "usage": {"input_tokens": 5, "output_tokens": 3},
+        }
+        for answer in answers
+    ]
+
+
+def with_profile(story: Path, context: Path, *extra: str) -> list[str]:
+    return ["design", str(story), "--context", str(context), *extra]
+
+
+def stub_transport(
+    monkeypatch: pytest.MonkeyPatch, scripted: Sequence[object]
+) -> list[tuple[str, dict[str, object], dict[str, str]]]:
+    outcomes = list(scripted)
+    calls: list[tuple[str, dict[str, object], dict[str, str]]] = []
+
+    def transport(
+        url: str, payload: dict[str, object], headers: dict[str, str], *, timeout: float
+    ) -> dict[str, object]:
+        calls.append((url, payload, headers))
+        outcome = outcomes.pop(0)
+        if isinstance(outcome, BaseException):
+            raise outcome
+        assert isinstance(outcome, dict)
+        return outcome
+
+    monkeypatch.setattr("atda.adapters.profiles.post_json", transport)
+    return calls
+
+
+def test_a_profile_builds_the_client_and_runs_the_pipeline(
+    story: Path,
+    context: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setenv("ANTHROPIC_API_KEY", KEY)
+    calls = stub_transport(monkeypatch, [*messages_api([ANALYST, DESIGNER, PRIORITIZER])])
+
+    code = main(with_profile(story, context, "--profile", PROFILE))
+
+    captured = capsys.readouterr()
+    assert code == 0
+    assert [r["id"] for r in json.loads(captured.out)["requirements"]] == ["S-1.R1", "S-1.R2"]
+    assert len(calls) == 3
+    assert {c[0] for c in calls} == {"https://api.anthropic.com/v1/messages"}
+    assert {c[1]["model"] for c in calls} == {"claude-sonnet-5-5"}
+    assert KEY not in captured.out + captured.err
+
+
+def test_a_profile_works_with_another_variant(
+    story: Path, context: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("ANTHROPIC_API_KEY", KEY)
+    calls = stub_transport(monkeypatch, [*messages_api([SINGLE])])
+
+    code = main(with_profile(story, context, "--profile", PROFILE, "--variant", "single-prompt"))
+
+    assert code == 0
+    assert len(calls) == 1
+
+
+def test_an_unknown_profile_exits_with_2_and_lists_the_available_names(
+    story: Path, context: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    code = main(with_profile(story, context, "--profile", "no-such-profile"))
+
+    err = capsys.readouterr().err
+    assert code == 2
+    assert "no-such-profile" in err
+    assert PROFILE in err
+
+
+def test_a_missing_key_exits_with_2_and_names_the_variable(
+    story: Path,
+    context: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+
+    code = main(with_profile(story, context, "--profile", PROFILE))
+
+    err = capsys.readouterr().err
+    assert code == 2
+    assert "ANTHROPIC_API_KEY" in err
+
+
+def test_an_http_failure_exits_with_1_and_does_not_print_the_key(
+    story: Path,
+    context: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setenv("ANTHROPIC_API_KEY", KEY)
+    stub_transport(monkeypatch, [HttpStatusError(401, '{"error": "invalid x-api-key"}')])
+
+    code = main(with_profile(story, context, "--profile", PROFILE))
+
+    captured = capsys.readouterr()
+    assert code == 1
+    assert "401" in captured.err
+    assert KEY not in captured.out + captured.err
+
+
+def test_a_cut_off_answer_exits_with_1(
+    story: Path,
+    context: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setenv("ANTHROPIC_API_KEY", KEY)
+    cut = messages_api(['{"requirements"'])
+    cut[0]["stop_reason"] = "max_tokens"
+    stub_transport(monkeypatch, cut)
+
+    code = main(with_profile(story, context, "--profile", PROFILE))
+
+    assert code == 1
+    assert "max_tokens" in capsys.readouterr().err
+
+
+def test_a_profile_and_fake_responses_together_are_a_usage_error(
+    story: Path, context: Path, responses: Path
+) -> None:
+    with pytest.raises(SystemExit) as exit_info:
+        main(with_profile(story, context, "--profile", PROFILE, "--fake-responses", str(responses)))
+
+    assert exit_info.value.code == 2
+
+
+def test_neither_a_profile_nor_fake_responses_is_a_usage_error(story: Path, context: Path) -> None:
+    with pytest.raises(SystemExit) as exit_info:
+        main(with_profile(story, context))
 
     assert exit_info.value.code == 2

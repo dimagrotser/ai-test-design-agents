@@ -1,0 +1,8 @@
+adapter: anthropic
+endpoint: https://api.anthropic.com/v1/messages
+model: claude-sonnet-5-5
+structured_output: output_config
+context_size: 200000
+timeout: 120
+location: cloud
+key_variable: ANTHROPIC_API_KEY

@@ -52,6 +52,7 @@ class AnthropicClient(LLMClient):
         self,
         model: str,
         *,
+        endpoint: str = URL,
         key_variable: str = "ANTHROPIC_API_KEY",
         max_tokens: int = 8192,
         timeout: float = 120.0,
@@ -61,6 +62,7 @@ class AnthropicClient(LLMClient):
         if not key:
             raise MissingApiKey(f"environment variable {key_variable} is not set")
         self._model = model
+        self._endpoint = endpoint
         self._key = key
         self._max_tokens = max_tokens
         self._timeout = timeout
@@ -88,7 +90,7 @@ class AnthropicClient(LLMClient):
                 "format": {"type": "json_schema", "schema": strict_schema(request.json_schema)}
             }
         body = self._transport(
-            URL,
+            self._endpoint,
             payload,
             {"x-api-key": self._key, "anthropic-version": API_VERSION},
             timeout=self._timeout,

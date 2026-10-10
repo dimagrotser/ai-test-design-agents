@@ -3,9 +3,14 @@ import json
 import sys
 from pathlib import Path
 
+from atda.adapters.anthropic import IncompleteResponse, MissingApiKey
 from atda.adapters.fake import FakeLLMClient, ScriptExhausted
 from atda.adapters.file_source import FileSource, load_test_context
+from atda.adapters.http import HttpError
+from atda.adapters.profiles import UnknownProfile, build_client, load_profile
+from atda.ports.llm import LLMClient
 from atda.report import render_json, render_markdown
+from atda.schemas.provider_profile import ProviderProfileError
 from atda.schemas.story import Story, StoryFormatError
 from atda.schemas.test_context import TestContextError
 from atda.schemas.test_design import TestDesign
@@ -25,12 +30,21 @@ def main(argv: list[str] | None = None) -> int:
     try:
         story = FileSource().load(args.story)
         context = load_test_context(Path(args.context))
-        client = FakeLLMClient(_load_responses(Path(args.fake_responses)))
+        client = _client(args)
         design = run_variant(Variant(args.variant), client, story, context).value
         written = _write_report(Path(args.out), story, design) if args.out else []
-    except (StoryFormatError, TestContextError, ResponsesFileError, ScriptExhausted, OSError) as e:
+    except (
+        StoryFormatError,
+        TestContextError,
+        ResponsesFileError,
+        ScriptExhausted,
+        UnknownProfile,
+        ProviderProfileError,
+        MissingApiKey,
+        OSError,
+    ) as e:
         return _fail(e, 2)
-    except StructuredGenerationError as error:
+    except (StructuredGenerationError, HttpError, IncompleteResponse) as error:
         return _fail(error, 1)
     if written:
         print("\n".join(str(path) for path in written))
@@ -42,6 +56,12 @@ def main(argv: list[str] | None = None) -> int:
     }
     print(json.dumps(printed, indent=2, ensure_ascii=False))
     return 0
+
+
+def _client(args: argparse.Namespace) -> LLMClient:
+    if args.profile:
+        return build_client(load_profile(args.profile))
+    return FakeLLMClient(_load_responses(Path(args.fake_responses)))
 
 
 def _fail(error: Exception, code: int) -> int:
@@ -76,9 +96,13 @@ def _parser() -> argparse.ArgumentParser:
     design = commands.add_parser("design", help="turn a Story into a Test Design")
     design.add_argument("story", help="path to the Story file")
     design.add_argument("--context", required=True, help="path to the Test Context file")
-    design.add_argument(
+    source = design.add_mutually_exclusive_group(required=True)
+    source.add_argument(
+        "--profile",
+        help="name of a Provider Profile: run against that model (needs its key variable)",
+    )
+    source.add_argument(
         "--fake-responses",
-        required=True,
         help=(
             "JSON list of model answers, in call order: one for single-prompt, "
             "analyst, designer, prioritizer for pipeline, plus a critic after each "
