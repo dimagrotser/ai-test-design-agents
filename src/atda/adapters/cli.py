@@ -3,7 +3,7 @@ import json
 import sys
 from pathlib import Path
 
-from atda.adapters.anthropic import IncompleteResponse, MissingApiKey
+from atda.adapters.errors import IncompleteResponse, MalformedResponse, MissingApiKey
 from atda.adapters.fake import FakeLLMClient, ScriptExhausted
 from atda.adapters.file_source import FileSource, load_test_context
 from atda.adapters.http import HttpError
@@ -44,7 +44,7 @@ def main(argv: list[str] | None = None) -> int:
         OSError,
     ) as e:
         return _fail(e, 2)
-    except (StructuredGenerationError, HttpError, IncompleteResponse) as error:
+    except (StructuredGenerationError, HttpError, IncompleteResponse, MalformedResponse) as error:
         return _fail(error, 1)
     if written:
         print("\n".join(str(path) for path in written))

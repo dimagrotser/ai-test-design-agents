@@ -559,3 +559,70 @@ def test_neither_a_profile_nor_fake_responses_is_a_usage_error(story: Path, cont
         main(with_profile(story, context))
 
     assert exit_info.value.code == 2
+
+
+COMPAT_PROFILE = "groq-gpt-oss-120b"
+COMPAT_KEY = "gsk-test-0123456789"
+
+
+def chat_completions(answers: list[str]) -> list[dict[str, object]]:
+    return [
+        {
+            "choices": [{"message": {"content": answer}, "finish_reason": "stop"}],
+            "usage": {"prompt_tokens": 5, "completion_tokens": 3},
+        }
+        for answer in answers
+    ]
+
+
+def test_an_openai_compatible_profile_runs_the_pipeline(
+    story: Path,
+    context: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setenv("GROQ_API_KEY", COMPAT_KEY)
+    calls = stub_transport(monkeypatch, chat_completions([ANALYST, DESIGNER, PRIORITIZER]))
+
+    code = main(with_profile(story, context, "--profile", COMPAT_PROFILE))
+
+    captured = capsys.readouterr()
+    assert code == 0
+    assert [r["id"] for r in json.loads(captured.out)["requirements"]] == ["S-1.R1", "S-1.R2"]
+    assert len(calls) == 3
+    assert {c[0] for c in calls} == {"https://api.groq.com/openai/v1/chat/completions"}
+    assert {c[1]["model"] for c in calls} == {"openai/gpt-oss-120b"}
+    assert COMPAT_KEY not in captured.out + captured.err
+
+
+def test_a_missing_key_of_an_openai_compatible_profile_exits_with_2(
+    story: Path,
+    context: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+
+    code = main(with_profile(story, context, "--profile", COMPAT_PROFILE))
+
+    assert code == 2
+    assert "GROQ_API_KEY" in capsys.readouterr().err
+
+
+def test_a_response_without_usage_exits_with_1_and_does_not_print_the_key(
+    story: Path,
+    context: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setenv("GROQ_API_KEY", COMPAT_KEY)
+    body = chat_completions([ANALYST])[0]
+    del body["usage"]
+    stub_transport(monkeypatch, [body])
+
+    code = main(with_profile(story, context, "--profile", COMPAT_PROFILE))
+
+    captured = capsys.readouterr()
+    assert code == 1
+    assert "usage" in captured.err
+    assert COMPAT_KEY not in captured.out + captured.err

@@ -1,0 +1,8 @@
+adapter: openai-compatible
+endpoint: https://api.groq.com/openai/v1/chat/completions
+model: openai/gpt-oss-120b
+structured_output: json_schema
+context_size: 131072
+timeout: 120
+location: cloud
+key_variable: GROQ_API_KEY

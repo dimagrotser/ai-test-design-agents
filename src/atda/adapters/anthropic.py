@@ -1,7 +1,8 @@
 import os
-from collections.abc import Callable, Mapping
+from collections.abc import Mapping
 
-from atda.adapters.http import post_json
+from atda.adapters.errors import IncompleteResponse, MissingApiKey
+from atda.adapters.http import Transport, post_json
 from atda.ports.llm import LLMClient, LLMRequest, LLMResponse
 
 URL = "https://api.anthropic.com/v1/messages"
@@ -12,18 +13,6 @@ API_VERSION = "2023-06-01"
 _UNSUPPORTED = frozenset(
     {"minimum", "maximum", "multipleOf", "minLength", "maxLength", "maxItems", "discriminator"}
 )
-
-Transport = Callable[..., dict[str, object]]
-
-
-class MissingApiKey(RuntimeError):
-    pass
-
-
-class IncompleteResponse(RuntimeError):
-    def __init__(self, stop_reason: str) -> None:
-        super().__init__(f"the model stopped with stop_reason {stop_reason!r}")
-        self.stop_reason = stop_reason
 
 
 def strict_schema(schema: Mapping[str, object]) -> dict[str, object]:
