@@ -90,6 +90,7 @@ def design_tests(
         test_cases=merged.cases,
         duplicate_ratio=merged.duplicate_ratio,
         contradictions=merged.contradictions,
+        conditions=generated.value.conditions,
     )
     return Generated(
         value=design,

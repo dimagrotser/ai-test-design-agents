@@ -4,7 +4,7 @@ from atda.schemas.outcome import ExpectedOutcome
 from atda.schemas.requirements import Gap, Requirement
 from atda.schemas.risk import Priority
 from atda.schemas.scalar import Scalar
-from atda.schemas.test_condition import Technique
+from atda.schemas.test_condition import Technique, TestCondition
 
 
 class TestCase(BaseModel):
@@ -35,3 +35,4 @@ class TestDesign(BaseModel):
     test_cases: tuple[TestCase, ...]
     duplicate_ratio: float = 0.0
     contradictions: tuple[Contradiction, ...] = ()
+    conditions: tuple[TestCondition, ...] = ()
