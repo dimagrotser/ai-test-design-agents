@@ -3,17 +3,19 @@ from typing import Literal
 
 import pytest
 
-from atda.expansion import ExpansionError, expand
+from atda.expansion import ExpansionError, expand, table_problems
 from atda.schemas.outcome import ExpectedOutcome
 from atda.schemas.requirements import Requirement
 from atda.schemas.scalar import Scalar
 from atda.schemas.test_condition import (
     BvaCondition,
+    DecisionTableCondition,
     EpCondition,
     EquivalenceClass,
     Operator,
     Technique,
 )
+from atda.schemas.test_design import TestCase
 
 ValueType = Literal["integer", "decimal"]
 
@@ -21,6 +23,7 @@ REQUIREMENTS = (
     Requirement(id="S-1.R1", ac_id="AC-1", text="Over the limit is rejected."),
     Requirement(id="S-1.R2", ac_id="AC-2", text="Blocked countries are rejected."),
     Requirement(id="S-1.R3", ac_id="AC-3", text="Too many recent transactions are rejected."),
+    Requirement(id="S-1.R4", ac_id="AC-4", text="Every broken rule is reported."),
 )
 NOMINAL: dict[str, Scalar] = {"amount": "100", "country": "DE", "recent_transactions": 0}
 APPROVED = ExpectedOutcome(status="approved", outcome_keys=())
@@ -33,6 +36,7 @@ def bva(
     value_type: ValueType = "decimal",
     input_name: str = "amount",
     requirement_id: str = "S-1.R1",
+    if_true: ExpectedOutcome = REJECTED,
 ) -> BvaCondition:
     return BvaCondition(
         requirement_id=requirement_id,
@@ -41,7 +45,7 @@ def bva(
         operator=operator,
         boundary=Decimal(boundary),
         value_type=value_type,
-        outcome_if_true=REJECTED,
+        outcome_if_true=if_true,
         outcome_if_false=APPROVED,
     )
 
@@ -170,3 +174,151 @@ def test_an_ep_input_missing_from_the_nominal_input_is_reported() -> None:
 
     with pytest.raises(ExpansionError, match="input region is not in the Nominal Input"):
         expand([condition], REQUIREMENTS, NOMINAL)
+
+
+VELOCITY = ExpectedOutcome(status="rejected", outcome_keys=("velocity",))
+
+
+def table(*inputs: str) -> DecisionTableCondition:
+    return DecisionTableCondition(
+        requirement_id="S-1.R4", evidence="every broken rule", inputs=inputs
+    )
+
+
+def fraud_rules() -> list[BvaCondition | EpCondition | DecisionTableCondition]:
+    return [
+        bva(Operator.GT, "10000"),
+        ep(("blocked", ("KP", "IR", "SY"), BLOCKED), ("other", ("DE",), APPROVED)),
+        bva(Operator.GE, "5", "integer", "recent_transactions", "S-1.R3", VELOCITY),
+        table("amount", "country", "recent_transactions"),
+    ]
+
+
+def rows() -> list[TestCase]:
+    return [
+        c
+        for c in expand(fraud_rules(), REQUIREMENTS, NOMINAL)
+        if c.technique is Technique.DECISION_TABLE
+    ]
+
+
+def test_three_inputs_give_eight_rows_holding_only_their_true_inputs() -> None:
+    cases = rows()
+
+    assert [c.overrides for c in cases] == [
+        {},
+        {"recent_transactions": 5},
+        {"country": "KP"},
+        {"country": "KP", "recent_transactions": 5},
+        {"amount": "10000.01"},
+        {"amount": "10000.01", "recent_transactions": 5},
+        {"amount": "10000.01", "country": "KP"},
+        {"amount": "10000.01", "country": "KP", "recent_transactions": 5},
+    ]
+
+
+def test_a_row_outcome_is_the_union_of_the_keys_of_the_inputs_that_fire() -> None:
+    cases = rows()
+
+    assert cases[0].expected == APPROVED
+    assert cases[5].expected == ExpectedOutcome(
+        status="rejected", outcome_keys=("amount_limit", "velocity")
+    )
+    assert cases[7].expected.outcome_keys == ("amount_limit", "blocked_country", "velocity")
+    assert cases[7].expected.status == "rejected"
+
+
+def test_a_row_names_its_technique_links_and_position() -> None:
+    cases = rows()
+
+    assert {c.technique for c in cases} == {Technique.DECISION_TABLE}
+    assert {(c.requirement_ids, c.ac_ids) for c in cases} == {(("S-1.R4",), ("AC-4",))}
+    assert cases[0].rationale == (
+        "decision table row 1: amount false, country false, recent_transactions false"
+    )
+    assert cases[5].rationale == (
+        "decision table row 6: amount true, country false, recent_transactions true"
+    )
+
+
+def test_all_cases_share_one_id_sequence_with_the_table_after_its_inputs() -> None:
+    cases = expand(fraud_rules(), REQUIREMENTS, NOMINAL)
+
+    assert len(cases) == 3 + 4 + 3 + 8
+    assert [c.id for c in cases][-1] == "TC-18"
+
+
+@pytest.mark.parametrize(
+    ("operator", "true_value"),
+    [(Operator.GT, 6), (Operator.GE, 5), (Operator.LT, 4), (Operator.LE, 5), (Operator.EQ, 5)],
+)
+def test_the_true_value_is_the_true_side_point_nearest_the_boundary(
+    operator: Operator, true_value: int
+) -> None:
+    conditions: list[BvaCondition | EpCondition | DecisionTableCondition] = [
+        bva(Operator.GT, "10000"),
+        bva(operator, "5", "integer", "recent_transactions", "S-1.R3", VELOCITY),
+        table("amount", "recent_transactions"),
+    ]
+    # The Nominal value must sit on the false side of the rule.
+    below = operator in (Operator.LT, Operator.LE)
+    nominal: dict[str, Scalar] = {**NOMINAL, "recent_transactions": 100 if below else 0}
+    cases = [
+        c
+        for c in expand(conditions, REQUIREMENTS, nominal)
+        if c.technique is Technique.DECISION_TABLE
+    ]
+
+    assert cases[1].overrides == {"recent_transactions": true_value}
+
+
+def test_a_table_input_without_a_single_factor_condition_is_reported() -> None:
+    conditions: list[BvaCondition | EpCondition | DecisionTableCondition] = [
+        bva(Operator.GT, "10000"),
+        table("amount", "country"),
+    ]
+
+    problems = table_problems(conditions, NOMINAL)
+
+    assert problems == [
+        "decision table on amount, country: input country has no BVA or EP condition"
+    ]
+    with pytest.raises(ExpansionError, match="input country has no BVA or EP condition"):
+        expand(conditions, REQUIREMENTS, NOMINAL)
+
+
+def test_a_table_input_missing_from_the_nominal_input_is_reported() -> None:
+    conditions: list[BvaCondition | EpCondition | DecisionTableCondition] = [
+        bva(Operator.GT, "10000"),
+        table("amount", "region"),
+    ]
+
+    assert any(
+        "input region is not in the Nominal Input" in p for p in table_problems(conditions, NOMINAL)
+    )
+
+
+def test_a_nominal_value_that_already_breaks_the_rule_is_reported() -> None:
+    nominal: dict[str, Scalar] = {**NOMINAL, "amount": "20000", "country": "KP"}
+
+    problems = table_problems(fraud_rules(), nominal)
+
+    assert any("amount" in p and "already satisfies the rule" in p for p in problems)
+    assert any("country" in p and "already satisfies the rule" in p for p in problems)
+
+
+def test_inputs_that_disagree_on_the_status_of_a_broken_rule_are_reported() -> None:
+    flagged = ExpectedOutcome(status="flagged", outcome_keys=("velocity",))
+    conditions: list[BvaCondition | EpCondition | DecisionTableCondition] = [
+        bva(Operator.GT, "10000"),
+        bva(Operator.GE, "5", "integer", "recent_transactions", "S-1.R3", flagged),
+        table("amount", "recent_transactions"),
+    ]
+
+    problems = table_problems(conditions, NOMINAL)
+
+    assert any("disagree on the status" in p for p in problems)
+
+
+def test_a_valid_set_of_conditions_has_no_table_problems() -> None:
+    assert table_problems(fraud_rules(), NOMINAL) == []
