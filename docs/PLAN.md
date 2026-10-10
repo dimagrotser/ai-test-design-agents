@@ -298,7 +298,7 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 
 ### 13: ReplayClient, fixture key and `record`
 
-- **Status:** todo
+- **Status:** done
 - **Owner:** agent
 - **Branch:** feat/replay-record
 - **Blocked by:** 08, 09, 12a, M1
@@ -306,11 +306,11 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 - **Scope:** Fixture key as a hash of model, messages, schema, temperature, seed and `num_ctx`. `ReplayClient` reads fixtures by key and raises a clear error that shows the key when none matches. A `record --profile <name>` subcommand runs the pipeline with a real client at temperature 0 and writes fixtures. A fixture stores the request body and the response body only, never headers, keys or tokens. The maintainer records the fixtures locally from the Synthetic Story with the Claude profile and commits them in this PR. A key component the provider does not take is hashed as null. A CI step runs `design` on that Story through Replay and compares the output with an expected Test Design.
 - **Out of scope:** Any recording in CI. `record` takes a Story from the Corpus Manifest and calls `require_dev` from ticket 15 before it does anything else.
 - **Acceptance criteria:**
-  - [ ] Changing any one of the six key components changes the key.
-  - [ ] A changed prompt makes the replay fail with a missing-fixture error, not a silent old answer.
-  - [ ] Replaying recorded fixtures reproduces the recorded Test Design exactly.
-  - [ ] A recorded fixture file contains no authorization header and no key value.
-  - [ ] `record` on a held-out Story exits non-zero and writes nothing.
+  - [x] Changing any one of the six key components changes the key.
+  - [x] A changed prompt makes the replay fail with a missing-fixture error, not a silent old answer.
+  - [x] Replaying recorded fixtures reproduces the recorded Test Design exactly.
+  - [x] A recorded fixture file contains no authorization header and no key value.
+  - [x] `record` on a held-out Story exits non-zero and writes nothing.
   - [ ] The CI step runs and passes.
 - **Tests first:** Key sensitivity, parametrized over the six components. Missing fixture error. Record then replay gives the same result, using FakeLLMClient as the recorded source. A recording made with a request that carries a fake key and an authorization header leaves neither in the file.
 
