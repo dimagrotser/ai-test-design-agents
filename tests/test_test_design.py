@@ -1,7 +1,7 @@
 from atda.schemas.outcome import ExpectedOutcome
 from atda.schemas.requirements import Gap, Requirement
 from atda.schemas.test_condition import Technique
-from atda.schemas.test_design import TestCase, TestDesign
+from atda.schemas.test_design import Contradiction, TestCase, TestDesign
 
 CASE = TestCase(
     id="TC-1",
@@ -31,3 +31,25 @@ def test_a_test_design_keeps_requirements_gaps_and_cases_through_json() -> None:
     )
 
     assert TestDesign.model_validate_json(design.model_dump_json()) == design
+
+
+def test_the_duplicate_ratio_and_contradictions_survive_a_json_round_trip() -> None:
+    design = TestDesign(
+        story_id="S-1",
+        requirements=(),
+        gaps=(),
+        test_cases=(CASE,),
+        duplicate_ratio=0.25,
+        contradictions=(Contradiction(case_ids=("TC-1", "TC-4")),),
+    )
+
+    assert TestDesign.model_validate_json(design.model_dump_json()) == design
+
+
+def test_a_document_written_before_the_ratio_existed_still_loads() -> None:
+    older = {"story_id": "S-1", "requirements": [], "gaps": [], "test_cases": []}
+
+    design = TestDesign.model_validate(older)
+
+    assert design.duplicate_ratio == 0.0
+    assert design.contradictions == ()
