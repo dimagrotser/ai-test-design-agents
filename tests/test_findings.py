@@ -4,7 +4,7 @@ import pytest
 
 from atda.findings import deterministic_findings
 from atda.lexicon import Lexicon, load_lexicon
-from atda.schemas.findings import Finding, FindingType, Severity, finding
+from atda.schemas.findings import SEMANTIC_TYPES, Finding, FindingType, Severity, finding
 from atda.schemas.outcome import ExpectedOutcome
 from atda.schemas.requirements import Requirement
 from atda.schemas.scalar import Scalar
@@ -37,6 +37,15 @@ def test_a_contradiction_is_blocking() -> None:
 )
 def test_every_other_type_only_warns(type_: FindingType) -> None:
     assert finding(type_, ("X-1",), "message").severity is Severity.WARNING
+
+
+@pytest.mark.parametrize("type_", [FindingType.WRONG_TECHNIQUE, FindingType.VAGUE_EXPECTED_RESULT])
+def test_the_semantic_types_are_set_by_the_critic_and_not_by_the_deterministic_helper(
+    type_: FindingType,
+) -> None:
+    assert type_ in SEMANTIC_TYPES
+    with pytest.raises(ValueError, match="semantic"):
+        finding(type_, ("TC-1",), "message")
 
 
 def test_a_finding_survives_a_json_round_trip() -> None:
