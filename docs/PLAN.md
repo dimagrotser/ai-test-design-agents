@@ -316,7 +316,7 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 
 ### 14: README for ship point 1
 
-- **Status:** todo
+- **Status:** done
 - **Owner:** agent
 - **Branch:** chore/readme-ship-1
 - **Blocked by:** 10, 13
@@ -325,8 +325,8 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 - **Out of scope:** Eval results.
 - **Acceptance criteria:**
   - [ ] Every command in the README was run and works.
-  - [ ] The replay statement and the Limitations section are present.
-  - [ ] No em-dashes and none of the banned marketing words.
+  - [x] The replay statement and the Limitations section are present.
+  - [x] No em-dashes and none of the banned marketing words.
 - **Tests first:** None.
 
 > **Cut line: ship point 1.** 16 tickets (15 agent, 1 maintainer), including spike 02, `AnthropicClient` and Provider Profiles. If the project stops here, it is a working Story to Test Design tool on the Claude API, with CI on replayed responses.
