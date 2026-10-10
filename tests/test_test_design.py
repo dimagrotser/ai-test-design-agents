@@ -1,6 +1,8 @@
+from decimal import Decimal
+
 from atda.schemas.outcome import ExpectedOutcome
 from atda.schemas.requirements import Gap, Requirement
-from atda.schemas.test_condition import Technique
+from atda.schemas.test_condition import BvaCondition, Operator, Technique
 from atda.schemas.test_design import Contradiction, TestCase, TestDesign
 
 CASE = TestCase(
@@ -53,3 +55,30 @@ def test_a_document_written_before_the_ratio_existed_still_loads() -> None:
 
     assert design.duplicate_ratio == 0.0
     assert design.contradictions == ()
+
+
+def test_the_conditions_survive_a_json_round_trip_with_their_types() -> None:
+    condition = BvaCondition(
+        requirement_id="S-1.R1",
+        input_name="amount",
+        evidence="over 10 000",
+        operator=Operator.GT,
+        boundary=Decimal(10000),
+        value_type="decimal",
+        outcome_if_true=ExpectedOutcome(status="rejected", outcome_keys=("amount_limit",)),
+        outcome_if_false=ExpectedOutcome(status="approved", outcome_keys=()),
+    )
+    design = TestDesign(
+        story_id="S-1", requirements=(), gaps=(), test_cases=(CASE,), conditions=(condition,)
+    )
+
+    again = TestDesign.model_validate_json(design.model_dump_json())
+
+    assert again == design
+    assert isinstance(again.conditions[0], BvaCondition)
+
+
+def test_a_document_without_conditions_loads_with_none() -> None:
+    older = {"story_id": "S-1", "requirements": [], "gaps": [], "test_cases": []}
+
+    assert TestDesign.model_validate(older).conditions == ()

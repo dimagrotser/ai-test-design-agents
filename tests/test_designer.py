@@ -304,3 +304,12 @@ def test_a_decision_table_with_evidence_outside_the_ac_is_retried() -> None:
     design_tests(client, TABLE_STORY, TABLE_ANALYSIS, TABLE_CONTEXT)
 
     assert "evidence 'all of them'" in client.requests[1].messages[-1].content
+
+
+def test_the_designer_keeps_the_conditions_it_expanded() -> None:
+    result = design_tests(FakeLLMClient([reply(BVA, EP)]), STORY, ANALYSIS, CONTEXT)
+
+    kinds = [c.technique.value for c in result.value.conditions]
+    assert kinds == ["BVA", "EP"]
+    assert result.value.conditions[0].evidence == "over 10 000"
+    assert result.value.conditions[1].evidence == "from KP, IR or SY"
