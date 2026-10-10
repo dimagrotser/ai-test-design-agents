@@ -9,6 +9,7 @@ from atda.expansion import expand, table_problems
 from atda.merge import merge_duplicates
 from atda.ports.llm import LLMClient, LLMRequest, Message
 from atda.prompts import load_prompt
+from atda.schemas.findings import Finding
 from atda.schemas.outcome import ExpectedOutcome
 from atda.schemas.requirements import Analysis
 from atda.schemas.scalar import Scalar
@@ -27,6 +28,14 @@ class DesignFacts:
     nominal_input: Mapping[str, Scalar]
     statuses: tuple[str, ...]
     outcome_keys: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class Feedback:
+    """What goes back to the Designer in a Refinement Loop round."""
+
+    conditions: tuple[TestCondition, ...]
+    findings: tuple[Finding, ...]
 
 
 class DesignerReply(BaseModel):
@@ -60,6 +69,7 @@ def design_tests(
     seed: int | None = None,
     num_ctx: int | None = None,
     max_attempts: int = 3,
+    feedback: Feedback | None = None,
 ) -> Generated[TestDesign]:
     acs = {ac.id: ac.text for ac in story.acceptance_criteria}
     facts = DesignFacts(
@@ -71,7 +81,7 @@ def design_tests(
     request = LLMRequest(
         messages=(
             Message(role="system", content=load_prompt("test_designer")),
-            Message(role="user", content=_render(analysis, context, facts)),
+            Message(role="user", content=_render(analysis, context, facts, feedback)),
         ),
         json_schema=DesignerReply.model_json_schema(),
         temperature=temperature,
@@ -147,7 +157,9 @@ def _collapse(text: str) -> str:
     return " ".join(text.split())
 
 
-def _render(analysis: Analysis, context: TestContext, facts: DesignFacts) -> str:
+def _render(
+    analysis: Analysis, context: TestContext, facts: DesignFacts, feedback: Feedback | None
+) -> str:
     lines = [f"Target: {context.target}", "", "Requirements:"]
     for requirement in analysis.requirements:
         ac_id, ac_text = facts.ac_of[requirement.id]
@@ -159,4 +171,17 @@ def _render(analysis: Analysis, context: TestContext, facts: DesignFacts) -> str
         f"Statuses: {', '.join(context.statuses)}",
         f"Outcome Keys: {', '.join(context.outcome_keys)}",
     ]
+    if feedback is not None:
+        previous = {"conditions": [c.model_dump(mode="json") for c in feedback.conditions]}
+        lines += ["", "Problems found in your previous answer:"]
+        lines += [
+            f"- [{f.type.value}] {', '.join(f.references)}: {f.message}" for f in feedback.findings
+        ]
+        lines += [
+            "",
+            "Your previous answer:",
+            json.dumps(previous),
+            "",
+            "Return a corrected, complete answer.",
+        ]
     return "\n".join(lines)

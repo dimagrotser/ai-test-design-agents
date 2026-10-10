@@ -16,5 +16,7 @@ Fields:
 - outcome_if_true is the outcome when "input operator boundary" holds, outcome_if_false when it does not.
 - Every outcome has a status and outcome_keys. Use only the listed statuses and Outcome Keys. Put the key of the rule that decides the outcome there. An approving outcome usually has no keys.
 
+If the message lists problems found in your previous answer, fix them and return a corrected, complete answer in the same format.
+
 Answer with one JSON object and nothing else:
 {"conditions": [{"technique": "BVA", "requirement_id": "...", "input_name": "...", "evidence": "...", "operator": ">", "boundary": 10000, "value_type": "decimal", "outcome_if_true": {"status": "...", "outcome_keys": ["..."]}, "outcome_if_false": {"status": "...", "outcome_keys": []}}, {"technique": "EP", "requirement_id": "...", "input_name": "...", "evidence": "...", "classes": [{"name": "...", "values": ["..."], "outcome": {"status": "...", "outcome_keys": ["..."]}}]}, {"technique": "DECISION_TABLE", "requirement_id": "...", "evidence": "...", "inputs": ["...", "..."]}]}
