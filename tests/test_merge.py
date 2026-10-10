@@ -143,3 +143,15 @@ def test_surviving_cases_keep_their_order_and_ids() -> None:
     ]
 
     assert [c.id for c in merge_duplicates(cases, NOMINAL).cases] == ["TC-1", "TC-2", "TC-4"]
+
+
+def test_outcomes_with_the_same_values_in_another_order_are_the_same_outcome() -> None:
+    first = ExpectedOutcome(status="ok", outcome_keys=(), values={"a": 1, "b": 2})
+    second = ExpectedOutcome(status="ok", outcome_keys=(), values={"b": 2, "a": 1})
+
+    result = merge_duplicates(
+        [case("TC-1", {"amount": "5"}, first), case("TC-2", {"amount": "5"}, second)], NOMINAL
+    )
+
+    assert [c.id for c in result.cases] == ["TC-1"]
+    assert result.contradictions == ()
