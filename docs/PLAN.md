@@ -14,9 +14,9 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 
 ## Ship points
 
-1. **Scaffold through Test Designer on one Story, with CI** (17 tickets: 15 agent and 2 maintainer, including spike 02, which runs in parallel and blocks nothing here). `design` runs on the Synthetic Story through Replay Fixtures in CI and writes a Test Design report. The repository is presentable here.
-2. **Walking skeleton, no LLM** (6 more tickets, 23 in total; spike 02 is counted in ship point 1). A hand-written Gold Test Design for FRAUD goes through the Binding, the Validity Run and mutmut to a Kill Rate, shown next to the Baseline Suite of 33 SUT tests.
-3. **Full eval** (23 more tickets, 46 in total, of which 2 are optional). Three Variants, three local models and one cloud model, the frozen corpus, the report and the README with results.
+1. **Scaffold through Test Designer on one Story, with CI** (16 tickets: 15 agent and 1 maintainer, including spike 02, which runs in parallel and blocks nothing here). `design` runs on the Synthetic Story through Replay Fixtures recorded with the Claude API in CI and writes a Test Design report. The repository is presentable here.
+2. **Walking skeleton, no LLM** (6 more tickets, 22 in total; spike 02 is counted in ship point 1). A hand-written Gold Test Design for FRAUD goes through the Binding, the Validity Run and mutmut to a Kill Rate, shown next to the Baseline Suite of 33 SUT tests.
+3. **Full eval** (24 more tickets, 46 in total, of which 2 are optional). Three Variants, three local models and one cloud model, the frozen corpus, the report and the README with results.
 
 ## Ticket index
 
@@ -34,9 +34,8 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 | 08 | Test Designer agent with evidence check | agent | 07 |
 | 09 | Decision Table expansion and duplicate merge | agent | 07 |
 | 10 | Test Design report | agent | 08 |
-| 11 | Ollama setup (checklist, no PR) | maintainer | none |
-| 12 | OllamaClient and `post_json` | agent | 05, 11 |
-| 12a | Provider Profiles | agent | 12 |
+| 25 | AnthropicClient and `post_json` | agent | 05 |
+| 12a | Provider Profiles | agent | 25 |
 | 13 | ReplayClient, fixture key and `record` | agent | 08, 09, 12a, M1 |
 | 14 | README for ship point 1 | agent | 10, 13 |
 | 15 | Corpus Manifest loader | agent | 03 |
@@ -49,8 +48,9 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 | 21 | Deterministic Findings | agent | 09 |
 | 22 | Critic and Refinement Loop | agent | 08, 21 |
 | 23 | Variants | agent | 20, 22 |
+| 11 | Ollama setup (checklist, no PR) | maintainer | none |
+| 12 | OllamaClient | agent | 11, 12a |
 | 24 | OpenAI-compatible client | agent | 12a |
-| 25 | AnthropicClient (untested) | agent | 12a |
 | 26 | JiraSource stub | agent | 03 |
 | M3 | Stories and Test Contexts for the remaining targets | maintainer | 15 |
 | 27 | parse_transaction Binding | agent | 16, M3 |
@@ -60,7 +60,7 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 | M4 | Gold Test Designs for the remaining Stories | maintainer | 27, 28, 29, 30 |
 | 31 | Eval metrics and aggregation | agent | 18 |
 | 32 | Prompt tuning on Dev Stories | agent | 13, 23, 28, 29, 30, 31 |
-| 33 | Spike: wall-clock of one Dev run on the ~30B model | agent | 11, 12a, 23 |
+| 33 | Spike: wall-clock of one Dev run on the ~30B model | agent | 11, 12, 23 |
 | 34 | Eval matrix runner | agent | 23, 31, 33 |
 | 35 | Eval report | agent | 34 |
 | M5 | Eval Freeze | maintainer | 18, M4, 32, 33 |
@@ -261,51 +261,39 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
   - [x] The output is byte-identical for the same input.
 - **Tests first:** JSON round trip. An uncovered AC in the matrix. Golden Markdown file.
 
-### 11: Ollama setup (checklist, no PR)
-
-- **Status:** todo
-- **Owner:** maintainer
-- **Branch:** none
-- **Blocked by:** none
-- **Goal:** Ollama runs locally with one model of each size, so the first recording can happen.
-- **Scope:** Install Ollama. Pull one model of about 8B, one of about 14B and one of about 30B (a MoE model in Q4 fits 32 GB). Run one request against `/api/chat` with a JSON schema in `format` and confirm that the response follows it. Note the exact tags and quantization.
-- **Out of scope:** Choosing the final models (settled at Eval Freeze, M5).
-- **Acceptance criteria:**
-  - [ ] `ollama list` shows three models.
-  - [ ] A schema-constrained request returns valid JSON for each model.
-  - [ ] The tags are pasted into the PR description of ticket 12.
-- **Tests first:** None.
-
-### 12: OllamaClient and `post_json`
+### 25: AnthropicClient and `post_json`
 
 - **Status:** todo
 - **Owner:** agent
-- **Branch:** feat/ollama-client
-- **Blocked by:** 05, 11
-- **Goal:** `design --ollama <model>` runs the pipeline against a local model.
-- **Scope:** A shared `post_json` helper over `urllib` with a timeout and a custom User-Agent. `OllamaClient` maps `LLMRequest` to `/api/chat` with the schema in `format` and temperature, seed and `num_ctx` in `options`. It reads token counts from the response and raises typed errors on HTTP failures and timeouts. `design` gets the `--ollama` option.
-- **Out of scope:** Replay, cloud clients, any real network call in tests.
+- **Branch:** feat/anthropic-client
+- **Blocked by:** 05
+- **Goal:** The first real `LLMClient`: the pipeline can run against the Claude API (ADR 0009).
+- **Scope:** A shared `post_json` helper over `urllib` with a timeout and a custom User-Agent. `AnthropicClient` over it, with no SDK and no new dependency, mapping `LLMRequest` to the Messages API. It is configured by constructor arguments (model, key variable name); the Provider Profile that builds it comes in 12a. The request format and the structured-output mechanism are taken from the official Anthropic API documentation, and the PR description links the pages used. The key is read from an environment variable and never printed or logged. Token counts are mapped to `LLMResponse`, and HTTP failures and timeouts raise typed errors. One opt-in smoke test with the pytest marker `live`: it makes one real call, is excluded by default through the pytest options, and is never run in CI. The maintainer runs it once with a key before merging.
+- **Out of scope:** Provider Profiles and the `--profile` option (12a), any real call outside the `live` test, using the class in the eval.
 - **Acceptance criteria:**
-  - [ ] The payload contains the schema, temperature, seed and `num_ctx`.
-  - [ ] Prompt and output token counts are mapped to `LLMResponse`.
-  - [ ] Non-200 responses and timeouts raise distinct errors.
+  - [ ] The payload shape is checked against a stubbed transport and matches the documented format.
   - [ ] Every request carries the custom User-Agent.
-- **Tests first:** All four, with the transport function stubbed.
+  - [ ] Non-200 responses and timeouts raise distinct errors.
+  - [ ] A missing key raises an error that does not contain any key value.
+  - [ ] `uv run pytest` does not run the `live` test, and CI does not select it.
+  - [ ] The `live` test skips with a clear message when the key variable is not set.
+  - [ ] The PR description states the model and the date of the live run.
+- **Tests first:** Payload shape, User-Agent, both errors and key handling with the stubbed transport. The default test run deselects `live`.
 
 ### 12a: Provider Profiles
 
 - **Status:** todo
 - **Owner:** agent
 - **Branch:** feat/provider-profiles
-- **Blocked by:** 12
+- **Blocked by:** 25
 - **Goal:** Models are chosen by a named Provider Profile, so the eval and Eval Freeze have one thing to pin.
-- **Scope:** A `ProviderProfile` model: adapter, endpoint, model tag, structured-output mechanism (a closed set of names defined by the adapters), context size, timeout, local or cloud, and the name of the environment variable that holds the key for cloud profiles. Profile files in the repo, with one profile per local model (about 8B, 14B and 30B, using the tags from checklist 11). A `--profile <name>` option on `design` and `record` that replaces `--ollama`.
-- **Out of scope:** Cloud profiles (tickets 24 and 25), choosing the final models (M5).
+- **Scope:** A `ProviderProfile` model: adapter, endpoint, model tag, structured-output mechanism (a closed set of names defined by the adapters), context size, timeout, local or cloud, and the name of the environment variable that holds the key for cloud profiles. Profile files in the repo, with one profile for Claude (the model tag is chosen by the maintainer in the PR). The local profiles come with ticket 12. A `--profile <name>` option on `design` that builds the client; `record` takes it in ticket 13.
+- **Out of scope:** The OpenAI-compatible profile (24), the local profiles (12), choosing the final models (M5).
 - **Acceptance criteria:**
   - [ ] An unknown profile name fails and lists the available names.
   - [ ] A profile with a missing field, or with a field that holds a key value instead of a variable name, is rejected.
   - [ ] `design --profile <name>` builds the matching client.
-  - [ ] The three local profiles load.
+  - [ ] The Claude profile loads.
 - **Tests first:** Valid profile loads. Each rejection. Client construction from a profile with the transport stubbed.
 
 ### 13: ReplayClient, fixture key and `record`
@@ -315,7 +303,7 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 - **Branch:** feat/replay-record
 - **Blocked by:** 08, 09, 12a, M1
 - **Goal:** CI runs the whole pipeline on the Synthetic Story from recorded responses, with no model and no keys.
-- **Scope:** Fixture key as a hash of model, messages, schema, temperature, seed and `num_ctx`. `ReplayClient` reads fixtures by key and raises a clear error that shows the key when none matches. A `record --profile <name>` subcommand runs the pipeline with a real client at temperature 0 and writes fixtures. A fixture stores the request body and the response body only, never headers, keys or tokens. The maintainer records the fixtures locally from the Synthetic Story and commits them in this PR. A CI step runs `design` on that Story through Replay and compares the output with an expected Test Design.
+- **Scope:** Fixture key as a hash of model, messages, schema, temperature, seed and `num_ctx`. `ReplayClient` reads fixtures by key and raises a clear error that shows the key when none matches. A `record --profile <name>` subcommand runs the pipeline with a real client at temperature 0 and writes fixtures. A fixture stores the request body and the response body only, never headers, keys or tokens. The maintainer records the fixtures locally from the Synthetic Story with the Claude profile and commits them in this PR. A key component the provider does not take is hashed as null. A CI step runs `design` on that Story through Replay and compares the output with an expected Test Design.
 - **Out of scope:** Any recording in CI. `record` takes a Story from the Corpus Manifest and calls `require_dev` from ticket 15 before it does anything else.
 - **Acceptance criteria:**
   - [ ] Changing any one of the six key components changes the key.
@@ -333,7 +321,7 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 - **Branch:** chore/readme-ship-1
 - **Blocked by:** 10, 13
 - **Goal:** The repository can be understood and run by a stranger.
-- **Scope:** What the project does, the architecture in a few paragraphs (ports and adapters, the import rule, deterministic expansion), real commands for install, tests and `design` on the Synthetic Story, a table of what is implemented, a stub (`JiraSource`) or untested (`AnthropicClient`) and what is planned. A sentence that replay-based CI checks pipeline wiring, not model quality. A short Limitations section. Dry technical prose.
+- **Scope:** What the project does, the architecture in a few paragraphs (ports and adapters, the import rule, deterministic expansion), real commands for install, tests and `design` on the Synthetic Story, a table of what is implemented, what is a stub (`JiraSource`) and what is planned. The profile the Replay Fixtures were recorded with. A sentence that replay-based CI checks pipeline wiring, not model quality. A short Limitations section. Dry technical prose.
 - **Out of scope:** Eval results.
 - **Acceptance criteria:**
   - [ ] Every command in the README was run and works.
@@ -341,7 +329,7 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
   - [ ] No em-dashes and none of the banned marketing words.
 - **Tests first:** None.
 
-> **Cut line: ship point 1.** 17 tickets (15 agent, 2 maintainer), including spike 02 and Provider Profiles. If the project stops here, it is a working Story to Test Design tool with CI on replayed responses.
+> **Cut line: ship point 1.** 16 tickets (15 agent, 1 maintainer), including spike 02, `AnthropicClient` and Provider Profiles. If the project stops here, it is a working Story to Test Design tool on the Claude API, with CI on replayed responses.
 
 ---
 
@@ -439,7 +427,7 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
   - [ ] If Gold scores below the Baseline Suite, the README says so.
 - **Tests first:** None.
 
-> **Cut line: ship point 2.** 6 more tickets, 23 in total. If the project stops here, it can measure a Test Design against mutants of the SUT, with no model comparison.
+> **Cut line: ship point 2.** 6 more tickets, 22 in total. If the project stops here, it can measure a Test Design against mutants of the SUT, with no model comparison.
 
 ---
 
@@ -506,6 +494,37 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
   - [x] Given the same Test Conditions, all Variants produce identical Test Cases.
 - **Tests first:** Call counts per Variant. Equal expansion for equal conditions.
 
+### 11: Ollama setup (checklist, no PR)
+
+- **Status:** todo
+- **Owner:** maintainer
+- **Branch:** none
+- **Blocked by:** none
+- **Goal:** Ollama runs locally with one model of each size, so the first recording can happen.
+- **Scope:** Install Ollama. Pull one model of about 8B, one of about 14B and one of about 30B (a MoE model in Q4 fits 32 GB). Run one request against `/api/chat` with a JSON schema in `format` and confirm that the response follows it. Note the exact tags and quantization.
+- **Out of scope:** Choosing the final models (settled at Eval Freeze, M5).
+- **Acceptance criteria:**
+  - [ ] `ollama list` shows three models.
+  - [ ] A schema-constrained request returns valid JSON for each model.
+  - [ ] The tags are pasted into the PR description of ticket 12.
+- **Tests first:** None.
+
+### 12: OllamaClient
+
+- **Status:** todo
+- **Owner:** agent
+- **Branch:** feat/ollama-client
+- **Blocked by:** 11, 12a
+- **Goal:** `design --profile <local profile>` runs the pipeline against a local model.
+- **Scope:** `OllamaClient` over `post_json` from ticket 25. It maps `LLMRequest` to `/api/chat` with the schema in `format` and temperature, seed and `num_ctx` in `options`, and reads token counts from the response. HTTP failures and timeouts raise the shared typed errors. The three local Provider Profiles (about 8B, 14B and 30B, using the tags from checklist 11).
+- **Out of scope:** Replay, cloud clients, any real network call in tests.
+- **Acceptance criteria:**
+  - [ ] The payload contains the schema, temperature, seed and `num_ctx`.
+  - [ ] Prompt and output token counts are mapped to `LLMResponse`.
+  - [ ] Non-200 responses and timeouts raise the shared typed errors.
+  - [ ] The three local profiles load.
+- **Tests first:** All four, with the transport function stubbed.
+
 ### 24: OpenAI-compatible client
 
 - **Status:** todo
@@ -520,22 +539,6 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
   - [ ] A missing key raises an error that does not contain any key value.
   - [ ] HTTP errors and timeouts are typed.
 - **Tests first:** All three, with the transport stubbed.
-
-### 25: AnthropicClient (untested)
-
-- **Status:** todo
-- **Owner:** agent
-- **Branch:** feat/anthropic-client
-- **Blocked by:** 12a
-- **Goal:** `LLMClient` implemented for the Messages API, and marked untested in code and docs until the live smoke test has been run with a key (ADR 0001).
-- **Scope:** `AnthropicClient` over `post_json`, with no SDK and no new dependency, configured by a cloud Provider Profile. The request format and the structured-output mechanism are taken from the official Anthropic API documentation, and the PR description links the pages used. One opt-in smoke test with the pytest marker `live`: it makes one real call, is excluded by default through the pytest options, and is never run in CI. A docstring and a README line that say the class has not been run against the real API.
-- **Out of scope:** Any real call outside the `live` test, using the class in the eval.
-- **Acceptance criteria:**
-  - [ ] The payload shape is checked against a stubbed transport and matches the documented format.
-  - [ ] `uv run pytest` does not run the `live` test, and CI does not select it.
-  - [ ] The `live` test skips with a clear message when the key variable is not set.
-  - [ ] The class and the README both say untested.
-- **Tests first:** Payload shape and key handling with the stubbed transport. The default test run deselects `live`.
 
 ### 26: JiraSource stub
 
@@ -672,7 +675,7 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 - **Status:** todo
 - **Owner:** agent
 - **Branch:** chore/spike-30b-wallclock
-- **Blocked by:** 11, 12a, 23
+- **Blocked by:** 11, 12, 23
 - **Goal:** Fix the size of the matrix from a measurement (ADR 0007).
 - **Scope:** Run Pipeline with Critic on one Dev Story with the ~30B Provider Profile and measure wall-clock, tokens and memory. Work out the time for the planned matrix and choose the number of Stories, repeats and models. Write it to `docs/spikes/30b-wallclock.md` and update ADR 0007 if the matrix changes.
 - **Out of scope:** The runner.
@@ -746,7 +749,7 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 - **Branch:** chore/readme-results
 - **Blocked by:** 36
 - **Goal:** The README reports what was measured and what was not.
-- **Scope:** Result tables from the report. Limitations: a very small corpus with no significance claim, Dev prompts tuned partly on a Synthetic Story, State Transition and the other deferred items, `JiraSource` as a stub, `AnthropicClient` untested, replay CI checks wiring and not model quality, cloud results from one repeat.
+- **Scope:** Result tables from the report. Limitations: a very small corpus with no significance claim, Dev prompts tuned partly on a Synthetic Story, State Transition and the other deferred items, `JiraSource` as a stub, Replay Fixtures recorded with Claude while the eval matrix runs on local models, replay CI checks wiring and not model quality, cloud results from one repeat.
 - **Out of scope:** New measurements.
 - **Acceptance criteria:**
   - [ ] Every number matches the committed results.
