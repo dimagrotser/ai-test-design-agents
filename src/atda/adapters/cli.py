@@ -3,7 +3,7 @@ import json
 import sys
 from pathlib import Path
 
-from atda.adapters.anthropic import IncompleteResponse, MissingApiKey
+from atda.adapters.errors import IncompleteResponse, MissingApiKey
 from atda.adapters.fake import FakeLLMClient, ScriptExhausted
 from atda.adapters.file_source import FileSource, load_test_context
 from atda.adapters.http import HttpError

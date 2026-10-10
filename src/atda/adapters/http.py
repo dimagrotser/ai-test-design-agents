@@ -1,10 +1,12 @@
 import json
 import urllib.error
 import urllib.request
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from importlib.metadata import version
 
 _ERROR_BODY_LIMIT = 500
+
+Transport = Callable[..., dict[str, object]]
 
 
 class HttpError(RuntimeError):
