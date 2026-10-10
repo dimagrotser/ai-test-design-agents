@@ -3,13 +3,16 @@ import json
 import sys
 from pathlib import Path
 
+from atda.adapters.corpus import load_agent_view, load_manifest
 from atda.adapters.errors import IncompleteResponse, MalformedResponse, MissingApiKey
 from atda.adapters.fake import FakeLLMClient, ScriptExhausted
 from atda.adapters.file_source import FileSource, load_test_context
 from atda.adapters.http import HttpError
 from atda.adapters.profiles import UnknownProfile, build_client, load_profile
+from atda.adapters.replay import FixtureStore, RecordingClient
 from atda.ports.llm import LLMClient
 from atda.report import render_json, render_markdown
+from atda.schemas.corpus import ManifestError
 from atda.schemas.provider_profile import ProviderProfileError
 from atda.schemas.story import Story, StoryFormatError
 from atda.schemas.test_context import TestContextError
@@ -25,17 +28,17 @@ class ResponsesFileError(ValueError):
     pass
 
 
+DEFAULT_MANIFEST = "eval/corpus/manifest.yaml"
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     try:
-        story = FileSource().load(args.story)
-        context = load_test_context(Path(args.context))
-        client = _client(args)
-        design = run_variant(Variant(args.variant), client, story, context).value
-        written = _write_report(Path(args.out), story, design) if args.out else []
+        return _record(args) if args.command == "record" else _design(args)
     except (
         StoryFormatError,
         TestContextError,
+        ManifestError,
         ResponsesFileError,
         ScriptExhausted,
         UnknownProfile,
@@ -46,6 +49,14 @@ def main(argv: list[str] | None = None) -> int:
         return _fail(e, 2)
     except (StructuredGenerationError, HttpError, IncompleteResponse, MalformedResponse) as error:
         return _fail(error, 1)
+
+
+def _design(args: argparse.Namespace) -> int:
+    story = FileSource().load(args.story)
+    context = load_test_context(Path(args.context))
+    client = _client(args)
+    design = run_variant(Variant(args.variant), client, story, context).value
+    written = _write_report(Path(args.out), story, design) if args.out else []
     if written:
         print("\n".join(str(path) for path in written))
         return 0
@@ -55,6 +66,25 @@ def main(argv: list[str] | None = None) -> int:
         **design.model_dump(mode="json", exclude={"story_id"}),
     }
     print(json.dumps(printed, indent=2, ensure_ascii=False))
+    return 0
+
+
+# The held-out guard comes first, so a held-out Story fails before the profile, the key or
+# the output directory are touched.
+def _record(args: argparse.Namespace) -> int:
+    manifest = load_manifest(Path(args.manifest))
+    manifest.require_dev(args.story_id)
+    view = load_agent_view(manifest, args.story_id)
+    profile = load_profile(args.profile)
+    out = Path(args.out)
+    store = FixtureStore(out / "fixtures")
+    client = RecordingClient(build_client(profile), store, profile.model)
+    design = run_variant(
+        Variant(args.variant), client, view.story, view.test_context, temperature=0.0
+    ).value
+    (out / "test-design.json").write_text(render_json(design), encoding="utf-8", newline="\n")
+    count = len(list((out / "fixtures").glob("*.json")))
+    print(f"recorded {count} fixtures in {out / 'fixtures'}")
     return 0
 
 
@@ -116,4 +146,17 @@ def _parser() -> argparse.ArgumentParser:
         help="how the Test Design is produced (default: pipeline)",
     )
     design.add_argument("--out", help="directory for test-design.json and test-design.md")
+    record = commands.add_parser(
+        "record", help="run the pipeline on a dev Story and save the model answers as fixtures"
+    )
+    record.add_argument("story_id", help="id of a Story in the Corpus Manifest")
+    record.add_argument("--profile", required=True, help="name of a Provider Profile")
+    record.add_argument("--out", required=True, help="directory for fixtures/ and test-design.json")
+    record.add_argument("--manifest", default=DEFAULT_MANIFEST, help="path to the Corpus Manifest")
+    record.add_argument(
+        "--variant",
+        choices=[v.value for v in Variant],
+        default=Variant.PIPELINE.value,
+        help="how the Test Design is produced (default: pipeline)",
+    )
     return parser
