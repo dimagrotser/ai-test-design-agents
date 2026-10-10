@@ -9,7 +9,13 @@ from atda.adapters.fake import FakeLLMClient, ScriptExhausted
 from atda.adapters.file_source import FileSource, load_test_context
 from atda.adapters.http import HttpError
 from atda.adapters.profiles import UnknownProfile, build_client, load_profile
-from atda.adapters.replay import FixtureStore, RecordingClient
+from atda.adapters.replay import (
+    FixtureError,
+    FixtureStore,
+    MissingFixture,
+    RecordingClient,
+    ReplayClient,
+)
 from atda.ports.llm import LLMClient
 from atda.report import render_json, render_markdown
 from atda.schemas.corpus import ManifestError
@@ -32,7 +38,10 @@ DEFAULT_MANIFEST = "eval/corpus/manifest.yaml"
 
 
 def main(argv: list[str] | None = None) -> int:
-    args = _parser().parse_args(argv)
+    parser = _parser()
+    args = parser.parse_args(argv)
+    if args.command == "design" and args.replay and not args.profile:
+        parser.error("--replay needs --profile, which supplies the model tag of the fixtures")
     try:
         return _record(args) if args.command == "record" else _design(args)
     except (
@@ -41,13 +50,20 @@ def main(argv: list[str] | None = None) -> int:
         ManifestError,
         ResponsesFileError,
         ScriptExhausted,
+        FixtureError,
         UnknownProfile,
         ProviderProfileError,
         MissingApiKey,
         OSError,
     ) as e:
         return _fail(e, 2)
-    except (StructuredGenerationError, HttpError, IncompleteResponse, MalformedResponse) as error:
+    except (
+        StructuredGenerationError,
+        HttpError,
+        IncompleteResponse,
+        MalformedResponse,
+        MissingFixture,
+    ) as error:
         return _fail(error, 1)
 
 
@@ -90,7 +106,13 @@ def _record(args: argparse.Namespace) -> int:
 
 def _client(args: argparse.Namespace) -> LLMClient:
     if args.profile:
-        return build_client(load_profile(args.profile))
+        profile = load_profile(args.profile)
+        if args.replay:
+            directory = Path(args.replay)
+            if not directory.is_dir():
+                raise FileNotFoundError(f"{directory}: replay directory not found")
+            return ReplayClient(FixtureStore(directory), profile.model)
+        return build_client(profile)
     return FakeLLMClient(_load_responses(Path(args.fake_responses)))
 
 
@@ -144,6 +166,10 @@ def _parser() -> argparse.ArgumentParser:
         choices=[v.value for v in Variant],
         default=Variant.PIPELINE.value,
         help="how the Test Design is produced (default: pipeline)",
+    )
+    design.add_argument(
+        "--replay",
+        help="directory of fixtures from `record`: answer from them instead of calling the model",
     )
     design.add_argument("--out", help="directory for test-design.json and test-design.md")
     record = commands.add_parser(

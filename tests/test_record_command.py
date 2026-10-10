@@ -220,3 +220,88 @@ def test_the_recorded_design_is_the_canonical_json_of_the_run(
     text = (out / "test-design.json").read_text(encoding="utf-8")
     assert text.endswith("\n")
     assert json.loads(text)["story_id"] == "S-1"
+
+
+def recorded(manifest: Path, out: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    stub_transport(monkeypatch, messages_api([ANALYST, DESIGNER, PRIORITIZER]))
+    assert main(record(manifest, out, "S-1")) == 0
+
+
+def replay(manifest: Path, directory: Path, *extra: str) -> list[str]:
+    base = manifest.parent / "stories"
+    return [
+        "design",
+        str(base / "story.md"),
+        "--context",
+        str(base / "story.context.yaml"),
+        "--profile",
+        PROFILE,
+        "--replay",
+        str(directory),
+        *extra,
+    ]
+
+
+def test_design_with_replay_reproduces_the_recording_without_a_key_or_a_network(
+    manifest: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    out = tmp_path / "out"
+    recorded(manifest, out, monkeypatch)
+    monkeypatch.delenv("ANTHROPIC_API_KEY")
+    calls = stub_transport(monkeypatch, [])
+    replayed = tmp_path / "replayed"
+
+    code = main(replay(manifest, out / "fixtures", "--out", str(replayed)))
+
+    assert code == 0
+    assert calls == []
+    assert (replayed / "test-design.json").read_bytes() == (out / "test-design.json").read_bytes()
+
+
+def test_a_changed_story_fails_the_replay_with_a_missing_fixture_error(
+    manifest: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    out = tmp_path / "out"
+    recorded(manifest, out, monkeypatch)
+    story = manifest.parent / "stories" / "story.md"
+    story.write_text(story.read_text().replace("10 000", "10 001"))
+
+    code = main(replay(manifest, out / "fixtures"))
+
+    err = capsys.readouterr().err
+    assert code == 1
+    assert "no recorded response for key" in err
+
+
+def test_a_missing_replay_directory_exits_with_2(
+    manifest: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    code = main(replay(manifest, tmp_path / "nowhere"))
+
+    assert code == 2
+    assert "nowhere" in capsys.readouterr().err
+
+
+def test_replay_without_a_profile_is_a_usage_error(manifest: Path, tmp_path: Path) -> None:
+    base = manifest.parent / "stories"
+    answers = tmp_path / "answers.json"
+    answers.write_text("[]")
+
+    with pytest.raises(SystemExit) as exit_info:
+        main(
+            [
+                "design",
+                str(base / "story.md"),
+                "--context",
+                str(base / "story.context.yaml"),
+                "--fake-responses",
+                str(answers),
+                "--replay",
+                str(tmp_path),
+            ]
+        )
+
+    assert exit_info.value.code == 2
