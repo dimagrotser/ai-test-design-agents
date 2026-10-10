@@ -263,7 +263,7 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 
 ### 25: AnthropicClient and `post_json`
 
-- **Status:** todo
+- **Status:** done
 - **Owner:** agent
 - **Branch:** feat/anthropic-client
 - **Blocked by:** 05
@@ -271,13 +271,13 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 - **Scope:** A shared `post_json` helper over `urllib` with a timeout and a custom User-Agent. `AnthropicClient` over it, with no SDK and no new dependency, mapping `LLMRequest` to the Messages API. It is configured by constructor arguments (model, key variable name); the Provider Profile that builds it comes in 12a. The request format and the structured-output mechanism are taken from the official Anthropic API documentation, and the PR description links the pages used. The key is read from an environment variable and never printed or logged. Token counts are mapped to `LLMResponse`, and HTTP failures and timeouts raise typed errors. One opt-in smoke test with the pytest marker `live`: it makes one real call, is excluded by default through the pytest options, and is never run in CI. The maintainer runs it once with a key before merging.
 - **Out of scope:** Provider Profiles and the `--profile` option (12a), any real call outside the `live` test, using the class in the eval.
 - **Acceptance criteria:**
-  - [ ] The payload shape is checked against a stubbed transport and matches the documented format.
-  - [ ] Every request carries the custom User-Agent.
-  - [ ] Non-200 responses and timeouts raise distinct errors.
-  - [ ] A missing key raises an error that does not contain any key value.
-  - [ ] `uv run pytest` does not run the `live` test, and CI does not select it.
-  - [ ] The `live` test skips with a clear message when the key variable is not set.
-  - [ ] The PR description states the model and the date of the live run.
+  - [x] The payload shape is checked against a stubbed transport and matches the documented format.
+  - [x] Every request carries the custom User-Agent.
+  - [x] Non-200 responses and timeouts raise distinct errors.
+  - [x] A missing key raises an error that does not contain any key value.
+  - [x] `uv run pytest` does not run the `live` test, and CI does not select it.
+  - [x] The `live` test skips with a clear message when the key variable is not set.
+  - [x] The PR description states the model and the date of the live run.
 - **Tests first:** Payload shape, User-Agent, both errors and key handling with the stubbed transport. The default test run deselects `live`.
 
 ### 12a: Provider Profiles
