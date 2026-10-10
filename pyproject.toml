@@ -39,6 +39,8 @@ files = ["src"]
 testpaths = ["tests"]
 # Domain names such as TestContext start with "Test". Our tests are plain functions.
 python_classes = []
+markers = ["live: one real API call, run by hand with a key"]
+addopts = "-m 'not live'"
 
 [tool.uv.build-backend]
 module-name = "atda"
