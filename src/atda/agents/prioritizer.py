@@ -1,4 +1,5 @@
 from collections import Counter
+from collections.abc import Sequence
 from typing import Self
 
 from pydantic import BaseModel, ConfigDict, ValidationInfo, model_validator
@@ -29,19 +30,23 @@ class PrioritizerReply(BaseModel):
         if info.context is None:
             raise ValueError("validation context with requirement_ids is required")
         known: tuple[str, ...] = info.context["requirement_ids"]
-        given = Counter(score.requirement_id for score in self.scores)
-        problems = []
-        if unknown := [i for i in given if i not in known]:
-            problems.append(
-                f"unknown requirement id {', '.join(unknown)}; known ids: {', '.join(known)}"
-            )
-        if repeated := [i for i, count in given.items() if count > 1]:
-            problems.append(f"scored more than once: {', '.join(repeated)}")
-        if missing := [i for i in known if i not in given]:
-            problems.append(f"no score for {', '.join(missing)}")
-        if problems:
+        if problems := score_problems(self.scores, known):
             raise ValueError("; ".join(problems))
         return self
+
+
+def score_problems(scores: Sequence[RiskScore], known: Sequence[str]) -> list[str]:
+    given = Counter(score.requirement_id for score in scores)
+    problems = []
+    if unknown := [i for i in given if i not in known]:
+        problems.append(
+            f"unknown requirement id {', '.join(unknown)}; known ids: {', '.join(known)}"
+        )
+    if repeated := [i for i, count in given.items() if count > 1]:
+        problems.append(f"scored more than once: {', '.join(repeated)}")
+    if missing := [i for i in known if i not in given]:
+        problems.append(f"no score for {', '.join(missing)}")
+    return problems
 
 
 def prioritize(

@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from typing import Annotated, Self
 
 from pydantic import (
@@ -37,10 +38,16 @@ class AnalystReply(BaseModel):
             raise ValueError("validation context with ac_ids is required")
         known: tuple[str, ...] = info.context["ac_ids"]
         cited = [r.ac_id for r in self.requirements] + [g.ac_id for g in self.gaps if g.ac_id]
-        unknown = list(dict.fromkeys(ac_id for ac_id in cited if ac_id not in known))
-        if unknown:
-            raise ValueError(f"unknown AC id {', '.join(unknown)}; known ids: {', '.join(known)}")
+        if problems := ac_id_problems(cited, known):
+            raise ValueError("; ".join(problems))
         return self
+
+
+def ac_id_problems(cited: Sequence[str], known: Sequence[str]) -> list[str]:
+    unknown = list(dict.fromkeys(ac_id for ac_id in cited if ac_id not in known))
+    if not unknown:
+        return []
+    return [f"unknown AC id {', '.join(unknown)}; known ids: {', '.join(known)}"]
 
 
 def analyze(
@@ -55,7 +62,7 @@ def analyze(
     request = LLMRequest(
         messages=(
             Message(role="system", content=load_prompt("requirements_analyst")),
-            Message(role="user", content=_render(story)),
+            Message(role="user", content=render_story(story)),
         ),
         json_schema=AnalystReply.model_json_schema(),
         temperature=temperature,
@@ -79,7 +86,7 @@ def analyze(
     )
 
 
-def _render(story: Story) -> str:
+def render_story(story: Story) -> str:
     lines = [f"Story {story.id}: {story.title}", ""]
     if story.text:
         lines += [story.text, ""]
