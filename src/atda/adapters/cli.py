@@ -5,12 +5,12 @@ from pathlib import Path
 
 from atda.adapters.fake import FakeLLMClient, ScriptExhausted
 from atda.adapters.file_source import FileSource, load_test_context
-from atda.pipeline import run_pipeline
 from atda.report import render_json, render_markdown
 from atda.schemas.story import Story, StoryFormatError
 from atda.schemas.test_context import TestContextError
 from atda.schemas.test_design import TestDesign
 from atda.structured_generation import StructuredGenerationError
+from atda.variants import Variant, run_variant
 
 # The CLI drives the core, so it is an adapter. Living here is what lets it import
 # FileSource while the core still never imports from adapters/.
@@ -26,7 +26,7 @@ def main(argv: list[str] | None = None) -> int:
         story = FileSource().load(args.story)
         context = load_test_context(Path(args.context))
         client = FakeLLMClient(_load_responses(Path(args.fake_responses)))
-        design = run_pipeline(client, story, context).value
+        design = run_variant(Variant(args.variant), client, story, context).value
         written = _write_report(Path(args.out), story, design) if args.out else []
     except (StoryFormatError, TestContextError, ResponsesFileError, ScriptExhausted, OSError) as e:
         return _fail(e, 2)
@@ -79,7 +79,17 @@ def _parser() -> argparse.ArgumentParser:
     design.add_argument(
         "--fake-responses",
         required=True,
-        help="JSON list of model answers: analyst, designer, prioritizer",
+        help=(
+            "JSON list of model answers, in call order: one for single-prompt, "
+            "analyst, designer, prioritizer for pipeline, plus a critic after each "
+            "designer for pipeline-with-critic"
+        ),
+    )
+    design.add_argument(
+        "--variant",
+        choices=[v.value for v in Variant],
+        default=Variant.PIPELINE.value,
+        help="how the Test Design is produced (default: pipeline)",
     )
     design.add_argument("--out", help="directory for test-design.json and test-design.md")
     return parser

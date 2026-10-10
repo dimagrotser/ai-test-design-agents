@@ -67,6 +67,22 @@ PRIORITIZER = json.dumps(
 )
 
 
+CRITIC = json.dumps({"findings": []})
+SINGLE = json.dumps(
+    {
+        **json.loads(ANALYST),
+        **json.loads(DESIGNER),
+        **json.loads(PRIORITIZER),
+    }
+)
+
+
+def script(tmp_path: Path, name: str, answers: list[str]) -> Path:
+    path = tmp_path / f"{name}.json"
+    path.write_text(json.dumps(answers))
+    return path
+
+
 @pytest.fixture
 def story(tmp_path: Path) -> Path:
     path = tmp_path / "story.md"
@@ -336,3 +352,61 @@ def test_an_out_path_that_is_a_file_exits_with_2(
     assert captured.out == ""
     assert captured.err.startswith("error: ")
     assert "taken" in captured.err
+
+
+@pytest.mark.parametrize(
+    ("variant", "answers"),
+    [
+        ("single-prompt", [SINGLE]),
+        ("pipeline", [ANALYST, DESIGNER, PRIORITIZER]),
+        ("pipeline-with-critic", [ANALYST, DESIGNER, CRITIC, PRIORITIZER]),
+    ],
+)
+def test_each_variant_runs_with_its_own_number_of_scripted_answers(
+    tmp_path: Path,
+    story: Path,
+    context: Path,
+    capsys: pytest.CaptureFixture[str],
+    variant: str,
+    answers: list[str],
+) -> None:
+    responses = script(tmp_path, variant, answers)
+
+    code = main([*design(story, context, responses), "--variant", variant])
+
+    printed = json.loads(capsys.readouterr().out)
+    assert code == 0
+    assert [r["id"] for r in printed["requirements"]] == ["S-1.R1", "S-1.R2"]
+    assert [c["overrides"]["amount"] for c in printed["test_cases"]] == [
+        "9999.99",
+        "10000",
+        "10000.01",
+    ]
+    assert {c["priority"] for c in printed["test_cases"]} == {"P1"}
+
+
+def test_the_default_variant_is_the_pipeline(
+    story: Path, context: Path, responses: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert main(design(story, context, responses)) == 0
+
+    assert json.loads(capsys.readouterr().out)["requirements"]
+
+
+def test_a_variant_with_too_few_scripted_answers_exits_with_2(
+    tmp_path: Path, story: Path, context: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    short = script(tmp_path, "short", [ANALYST, DESIGNER, PRIORITIZER])
+
+    code = main([*design(story, context, short), "--variant", "pipeline-with-critic"])
+
+    captured = capsys.readouterr()
+    assert code == 2
+    assert "no scripted response left" in captured.err
+
+
+def test_an_unknown_variant_is_a_usage_error(story: Path, context: Path, responses: Path) -> None:
+    with pytest.raises(SystemExit) as exit_info:
+        main([*design(story, context, responses), "--variant", "everything"])
+
+    assert exit_info.value.code == 2
