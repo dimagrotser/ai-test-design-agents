@@ -1,0 +1,28 @@
+# Phrases of an acceptance criterion and the comparison operator each one stands for.
+# The operator check of the deterministic Findings reads this file. Add a phrase here and it
+# takes effect without a code change. Matching ignores case and works on whole words.
+">":
+  - over
+  - above
+  - more than
+  - exceeds
+  - greater than
+">=":
+  - at least
+  - or more
+  - no less than
+  - minimum of
+"<":
+  - under
+  - below
+  - less than
+  - fewer than
+"<=":
+  - at most
+  - up to
+  - or less
+  - no more than
+  - maximum of
+"==":
+  - exactly
+  - equal to
