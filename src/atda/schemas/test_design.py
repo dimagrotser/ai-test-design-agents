@@ -1,5 +1,6 @@
 from pydantic import BaseModel, ConfigDict, Field, StrictStr
 
+from atda.schemas.findings import Finding
 from atda.schemas.outcome import ExpectedOutcome
 from atda.schemas.requirements import Gap, Requirement
 from atda.schemas.risk import Priority
@@ -36,3 +37,4 @@ class TestDesign(BaseModel):
     duplicate_ratio: float = 0.0
     contradictions: tuple[Contradiction, ...] = ()
     conditions: tuple[TestCondition, ...] = ()
+    findings: tuple[Finding, ...] = ()

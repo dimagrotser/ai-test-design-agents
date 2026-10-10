@@ -1,5 +1,6 @@
 from decimal import Decimal
 
+from atda.schemas.findings import Finding, FindingType, Severity
 from atda.schemas.outcome import ExpectedOutcome
 from atda.schemas.requirements import Gap, Requirement
 from atda.schemas.test_condition import BvaCondition, Operator, Technique
@@ -82,3 +83,23 @@ def test_a_document_without_conditions_loads_with_none() -> None:
     older = {"story_id": "S-1", "requirements": [], "gaps": [], "test_cases": []}
 
     assert TestDesign.model_validate(older).conditions == ()
+
+
+def test_the_findings_of_the_last_review_survive_a_json_round_trip() -> None:
+    found = Finding(
+        type=FindingType.WRONG_TECHNIQUE,
+        severity=Severity.BLOCKING,
+        references=("TC-1",),
+        message="BVA on a set of countries",
+    )
+    design = TestDesign(
+        story_id="S-1", requirements=(), gaps=(), test_cases=(CASE,), findings=(found,)
+    )
+
+    assert TestDesign.model_validate_json(design.model_dump_json()) == design
+
+
+def test_a_document_without_findings_loads_with_none() -> None:
+    older = {"story_id": "S-1", "requirements": [], "gaps": [], "test_cases": []}
+
+    assert TestDesign.model_validate(older).findings == ()

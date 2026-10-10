@@ -55,6 +55,29 @@ PRIORITIZER = json.dumps(
 )
 
 
+BLOCKING_REVIEW = json.dumps(
+    {
+        "findings": [
+            {
+                "type": "wrong_technique",
+                "severity": "blocking",
+                "references": ["TC-1"],
+                "message": "BVA fits a numeric limit only",
+            }
+        ]
+    }
+)
+CLEAN_REVIEW = json.dumps({"findings": []})
+
+
+def prompts(client: FakeLLMClient) -> list[str]:
+    names = {
+        load_prompt(name): name
+        for name in ("requirements_analyst", "test_designer", "critic", "risk_prioritizer")
+    }
+    return [names[r.messages[0].content] for r in client.requests]
+
+
 def test_the_designer_works_from_the_requirements_the_analyst_returned() -> None:
     client = FakeLLMClient([ANALYST, DESIGNER, PRIORITIZER])
 
@@ -120,3 +143,52 @@ def test_when_the_analyst_fails_the_designer_is_never_called() -> None:
         run_pipeline(client, STORY, CONTEXT)
 
     assert len(client.requests) == 3
+
+
+def test_with_the_critic_a_blocking_finding_sends_only_the_designer_back() -> None:
+    client = FakeLLMClient(
+        [ANALYST, DESIGNER, BLOCKING_REVIEW, DESIGNER, CLEAN_REVIEW, PRIORITIZER]
+    )
+
+    result = run_pipeline(client, STORY, CONTEXT, critic=True)
+
+    assert prompts(client) == [
+        "requirements_analyst",
+        "test_designer",
+        "critic",
+        "test_designer",
+        "critic",
+        "risk_prioritizer",
+    ]
+    assert "BVA fits a numeric limit only" in client.requests[3].messages[1].content
+    assert result.value.findings == ()
+
+
+def test_the_analyst_runs_once_and_the_requirements_keep_their_ids_through_the_loop() -> None:
+    script = [ANALYST, DESIGNER, BLOCKING_REVIEW, DESIGNER, BLOCKING_REVIEW, DESIGNER]
+    client = FakeLLMClient([*script, BLOCKING_REVIEW, PRIORITIZER])
+
+    result = run_pipeline(client, STORY, CONTEXT, critic=True)
+
+    assert prompts(client).count("requirements_analyst") == 1
+    assert prompts(client).count("test_designer") == 3
+    assert [r.id for r in result.value.requirements] == ["FRAUD-1.R1"]
+    assert [f.severity.value for f in result.value.findings] == ["blocking"]
+
+
+def test_the_attempts_and_tokens_of_the_whole_loop_are_summed() -> None:
+    answers = [ANALYST, DESIGNER, BLOCKING_REVIEW, DESIGNER, CLEAN_REVIEW, PRIORITIZER]
+    client = FakeLLMClient([LLMResponse(text=a, input_tokens=2, output_tokens=1) for a in answers])
+
+    result = run_pipeline(client, STORY, CONTEXT, critic=True)
+
+    assert (result.attempts, result.input_tokens, result.output_tokens) == (6, 12, 6)
+
+
+def test_without_the_critic_nothing_is_reviewed_and_the_designer_runs_once() -> None:
+    client = FakeLLMClient([ANALYST, DESIGNER, PRIORITIZER])
+
+    result = run_pipeline(client, STORY, CONTEXT)
+
+    assert prompts(client) == ["requirements_analyst", "test_designer", "risk_prioritizer"]
+    assert result.value.findings == ()

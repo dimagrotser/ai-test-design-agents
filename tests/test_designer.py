@@ -4,9 +4,10 @@ from collections.abc import Mapping
 import pytest
 
 from atda.adapters.fake import FakeLLMClient
-from atda.agents.designer import design_tests
+from atda.agents.designer import Feedback, design_tests
 from atda.ports.llm import LLMResponse
 from atda.prompts import load_prompt
+from atda.schemas.findings import Finding, FindingType, Severity
 from atda.schemas.requirements import Analysis, Gap, Requirement
 from atda.schemas.story import AcceptanceCriterion, Story
 from atda.schemas.test_context import TestContext
@@ -313,3 +314,36 @@ def test_the_designer_keeps_the_conditions_it_expanded() -> None:
     assert kinds == ["BVA", "EP"]
     assert result.value.conditions[0].evidence == "over 10 000"
     assert result.value.conditions[1].evidence == "from KP, IR or SY"
+
+
+def test_feedback_adds_the_findings_and_the_previous_answer_to_the_message() -> None:
+    first = design_tests(FakeLLMClient([reply(BVA)]), STORY, ANALYSIS, CONTEXT).value
+    feedback = Feedback(
+        conditions=first.conditions,
+        findings=(
+            Finding(
+                type=FindingType.CONTRADICTION,
+                severity=Severity.BLOCKING,
+                references=("TC-1", "TC-2"),
+                message="TC-1, TC-2 have the same input and different outcomes",
+            ),
+        ),
+    )
+    client = FakeLLMClient([reply(BVA)])
+
+    design_tests(client, STORY, ANALYSIS, CONTEXT, feedback=feedback)
+
+    user = client.requests[0].messages[1].content
+    assert "Problems found in your previous answer:" in user
+    assert "- [contradiction] TC-1, TC-2: TC-1, TC-2 have the same input" in user
+    assert '"requirement_id": "FRAUD-1.R1"' in user
+    assert '"evidence": "over 10 000"' in user
+    assert "Return a corrected, complete answer." in user
+
+
+def test_without_feedback_the_message_has_no_problem_section() -> None:
+    client = FakeLLMClient([reply(BVA)])
+
+    design_tests(client, STORY, ANALYSIS, CONTEXT)
+
+    assert "Problems found" not in client.requests[0].messages[1].content
