@@ -1,5 +1,7 @@
 from pydantic import BaseModel, ConfigDict
 
+from atda.schemas.risk import Risk
+
 
 class Requirement(BaseModel):
     model_config = ConfigDict(frozen=True)
@@ -7,6 +9,7 @@ class Requirement(BaseModel):
     id: str
     ac_id: str
     text: str
+    risk: Risk | None = None
 
 
 class Gap(BaseModel):

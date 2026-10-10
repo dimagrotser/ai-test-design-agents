@@ -1,6 +1,8 @@
 from atda.agents.analyst import analyze
 from atda.agents.designer import design_tests
+from atda.agents.prioritizer import prioritize
 from atda.ports.llm import LLMClient
+from atda.priority import with_priorities
 from atda.schemas.story import Story
 from atda.schemas.test_context import TestContext
 from atda.schemas.test_design import TestDesign
@@ -35,9 +37,21 @@ def run_pipeline(
         num_ctx=num_ctx,
         max_attempts=max_attempts,
     )
+    rated = prioritize(
+        client,
+        story,
+        analysis.value,
+        temperature=temperature,
+        seed=seed,
+        num_ctx=num_ctx,
+        max_attempts=max_attempts,
+    )
+    prioritized = with_priorities(
+        design.value.model_copy(update={"requirements": rated.value.requirements})
+    )
     return Generated(
-        value=design.value,
-        attempts=analysis.attempts + design.attempts,
-        input_tokens=analysis.input_tokens + design.input_tokens,
-        output_tokens=analysis.output_tokens + design.output_tokens,
+        value=prioritized,
+        attempts=analysis.attempts + design.attempts + rated.attempts,
+        input_tokens=analysis.input_tokens + design.input_tokens + rated.input_tokens,
+        output_tokens=analysis.output_tokens + design.output_tokens + rated.output_tokens,
     )

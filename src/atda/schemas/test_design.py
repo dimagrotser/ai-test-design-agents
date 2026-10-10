@@ -2,6 +2,7 @@ from pydantic import BaseModel, ConfigDict, Field, StrictStr
 
 from atda.schemas.outcome import ExpectedOutcome
 from atda.schemas.requirements import Gap, Requirement
+from atda.schemas.risk import Priority
 from atda.schemas.scalar import Scalar
 from atda.schemas.test_condition import Technique
 
@@ -16,6 +17,7 @@ class TestCase(BaseModel):
     rationale: StrictStr
     overrides: dict[str, Scalar]
     expected: ExpectedOutcome
+    priority: Priority | None = None
 
 
 class Contradiction(BaseModel):

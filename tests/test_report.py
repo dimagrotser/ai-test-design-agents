@@ -3,6 +3,7 @@ from pathlib import Path
 from atda.report import render_json, render_markdown
 from atda.schemas.outcome import ExpectedOutcome
 from atda.schemas.requirements import Gap, Requirement
+from atda.schemas.risk import Priority, Risk
 from atda.schemas.story import AcceptanceCriterion, Story
 from atda.schemas.test_condition import Technique
 from atda.schemas.test_design import Contradiction, TestCase, TestDesign
@@ -31,6 +32,7 @@ def case(
     overrides: dict[str, str | int | float | bool],
     expected: ExpectedOutcome,
     rationale: str,
+    priority: Priority | None = None,
 ) -> TestCase:
     return TestCase(
         id=case_id,
@@ -40,18 +42,32 @@ def case(
         rationale=rationale,
         overrides=overrides,
         expected=expected,
+        priority=priority,
     )
 
 
 DESIGN = TestDesign(
     story_id="FRAUD-1",
     requirements=(
-        Requirement(id="FRAUD-1.R1", ac_id="AC-1", text="An amount over 10000 is rejected."),
         Requirement(
-            id="FRAUD-1.R2", ac_id="AC-2", text="Transactions from KP, IR or SY are rejected."
+            id="FRAUD-1.R1",
+            ac_id="AC-1",
+            text="An amount over 10000 is rejected.",
+            risk=Risk(likelihood=3, impact=3),
+        ),
+        Requirement(
+            id="FRAUD-1.R2",
+            ac_id="AC-2",
+            text="Transactions from KP, IR or SY are rejected.",
+            risk=Risk(likelihood=2, impact=2),
         ),
         Requirement(id="FRAUD-1.R3", ac_id="AC-3", text="Every broken rule is reported."),
-        Requirement(id="FRAUD-1.R4", ac_id="AC-4", text="Five or more transactions are rejected."),
+        Requirement(
+            id="FRAUD-1.R4",
+            ac_id="AC-4",
+            text="Five or more transactions are rejected.",
+            risk=Risk(likelihood=1, impact=1),
+        ),
     ),
     gaps=(
         Gap(ac_id="AC-1", text="Is 10000 itself rejected?"),
@@ -66,6 +82,7 @@ DESIGN = TestDesign(
             {"amount": "10000.01"},
             ExpectedOutcome(status="rejected", outcome_keys=("amount_limit",)),
             "boundary 10000 of amount (>): just above",
+            Priority.P1,
         ),
         case(
             "TC-2",
@@ -75,6 +92,7 @@ DESIGN = TestDesign(
             {"country": "KP"},
             ExpectedOutcome(status="rejected", outcome_keys=("blocked_country",)),
             "class 'blocked' of country: KP; decision table row 3: amount false, country true",
+            Priority.P2,
         ),
         case(
             "TC-3",
@@ -93,6 +111,7 @@ DESIGN = TestDesign(
             {},
             ExpectedOutcome(status="approved", outcome_keys=(), values={"checked": True}),
             "boundary 10000 of amount (>): just below",
+            Priority.P1,
         ),
     ),
     duplicate_ratio=0.25,
@@ -178,3 +197,13 @@ def test_pipes_and_line_breaks_cannot_break_a_table_cell() -> None:
     assert "| FRAUD-1.R1 | AC-1 | Either \\| or both. |" in text
     assert "note=a\\|b" in text
     assert "why \\| because really" in text
+
+
+def test_the_priority_columns_show_p_levels_and_a_dash_when_unrated() -> None:
+    text = render_markdown(STORY, DESIGN)
+
+    assert "| FRAUD-1.R1 | AC-1 | An amount over 10000 is rejected. | P1 |" in text
+    assert "| FRAUD-1.R2 | AC-2 | Transactions from KP, IR or SY are rejected. | P2 |" in text
+    assert "| FRAUD-1.R3 | AC-3 | Every broken rule is reported. | - |" in text
+    assert "| FRAUD-1.R4 | AC-4 | Five or more transactions are rejected. | P3 |" in text
+    assert "| rejected (amount_limit, blocked_country) | - |" in text

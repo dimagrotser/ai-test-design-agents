@@ -1,6 +1,7 @@
 import json
 from collections.abc import Sequence
 
+from atda.priority import priority_of
 from atda.schemas.outcome import ExpectedOutcome
 from atda.schemas.scalar import Scalar
 from atda.schemas.story import Story
@@ -24,8 +25,11 @@ def render_markdown(story: Story, design: TestDesign) -> str:
 
 
 def _requirements(design: TestDesign) -> str:
-    rows = [[r.id, r.ac_id, r.text] for r in design.requirements]
-    return _section("Requirements", _table(["Id", "AC", "Requirement"], rows))
+    rows = [
+        [r.id, r.ac_id, r.text, priority_of(r.risk).value if r.risk else "-"]
+        for r in design.requirements
+    ]
+    return _section("Requirements", _table(["Id", "AC", "Requirement", "Priority"], rows))
 
 
 def _gaps(design: TestDesign) -> str:
@@ -41,13 +45,23 @@ def _test_cases(design: TestDesign) -> str:
             ", ".join(f"{name}={_scalar(value)}" for name, value in case.overrides.items())
             or "Nominal input",
             _outcome(case.expected),
+            case.priority.value if case.priority else "-",
             ", ".join(case.requirement_ids),
             ", ".join(case.ac_ids),
             case.rationale,
         ]
         for case in design.test_cases
     ]
-    header = ["Id", "Technique", "Input", "Expected", "Requirements", "ACs", "Rationale"]
+    header = [
+        "Id",
+        "Technique",
+        "Input",
+        "Expected",
+        "Priority",
+        "Requirements",
+        "ACs",
+        "Rationale",
+    ]
     return _section("Test cases", _table(header, rows))
 
 

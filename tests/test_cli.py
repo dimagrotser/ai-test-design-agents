@@ -57,6 +57,16 @@ DESIGNER = json.dumps(
 )
 
 
+PRIORITIZER = json.dumps(
+    {
+        "scores": [
+            {"requirement_id": "S-1.R1", "likelihood": 3, "impact": 3},
+            {"requirement_id": "S-1.R2", "likelihood": 1, "impact": 1},
+        ]
+    }
+)
+
+
 @pytest.fixture
 def story(tmp_path: Path) -> Path:
     path = tmp_path / "story.md"
@@ -74,7 +84,7 @@ def context(tmp_path: Path) -> Path:
 @pytest.fixture
 def responses(tmp_path: Path) -> Path:
     path = tmp_path / "responses.json"
-    path.write_text(json.dumps([ANALYST, DESIGNER]))
+    path.write_text(json.dumps([ANALYST, DESIGNER, PRIORITIZER]))
     return path
 
 
@@ -104,6 +114,11 @@ def test_design_prints_the_inputs_requirements_and_gaps_as_json(
         "10000",
         "10000.01",
     ]
+    assert [r["risk"] for r in printed["requirements"]] == [
+        {"likelihood": 3, "impact": 3},
+        {"likelihood": 1, "impact": 1},
+    ]
+    assert {c["priority"] for c in printed["test_cases"]} == {"P1"}
 
 
 def test_a_missing_story_file_exits_with_2_and_names_the_path(
@@ -215,6 +230,20 @@ def test_a_script_with_only_the_analysts_answer_exits_with_2(
 
     captured = capsys.readouterr()
     assert code == 2
+    assert "no scripted response left" in captured.err
+
+
+def test_a_script_without_the_prioritizers_answer_exits_with_2(
+    tmp_path: Path, story: Path, context: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    short = tmp_path / "two.json"
+    short.write_text(json.dumps([ANALYST, DESIGNER]))
+
+    code = main(design(story, context, short))
+
+    captured = capsys.readouterr()
+    assert code == 2
+    assert captured.out == ""
     assert "no scripted response left" in captured.err
 
 

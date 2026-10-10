@@ -2,12 +2,12 @@
 
 ## Requirements
 
-| Id | AC | Requirement |
-| --- | --- | --- |
-| FRAUD-1.R1 | AC-1 | An amount over 10000 is rejected. |
-| FRAUD-1.R2 | AC-2 | Transactions from KP, IR or SY are rejected. |
-| FRAUD-1.R3 | AC-3 | Every broken rule is reported. |
-| FRAUD-1.R4 | AC-4 | Five or more transactions are rejected. |
+| Id | AC | Requirement | Priority |
+| --- | --- | --- | --- |
+| FRAUD-1.R1 | AC-1 | An amount over 10000 is rejected. | P1 |
+| FRAUD-1.R2 | AC-2 | Transactions from KP, IR or SY are rejected. | P2 |
+| FRAUD-1.R3 | AC-3 | Every broken rule is reported. | - |
+| FRAUD-1.R4 | AC-4 | Five or more transactions are rejected. | P3 |
 
 ## Gaps
 
@@ -16,12 +16,12 @@
 
 ## Test cases
 
-| Id | Technique | Input | Expected | Requirements | ACs | Rationale |
-| --- | --- | --- | --- | --- | --- | --- |
-| TC-1 | BVA | amount=10000.01 | rejected (amount_limit) | FRAUD-1.R1 | AC-1 | boundary 10000 of amount (>): just above |
-| TC-2 | EP | country=KP | rejected (blocked_country) | FRAUD-1.R2, FRAUD-1.R3 | AC-2, AC-3 | class 'blocked' of country: KP; decision table row 3: amount false, country true |
-| TC-3 | DECISION_TABLE | amount=10000.01, country=KP | rejected (amount_limit, blocked_country) | FRAUD-1.R3 | AC-3 | decision table row 4: amount true, country true |
-| TC-4 | BVA | Nominal input | approved {"checked": true} | FRAUD-1.R1 | AC-1 | boundary 10000 of amount (>): just below |
+| Id | Technique | Input | Expected | Priority | Requirements | ACs | Rationale |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| TC-1 | BVA | amount=10000.01 | rejected (amount_limit) | P1 | FRAUD-1.R1 | AC-1 | boundary 10000 of amount (>): just above |
+| TC-2 | EP | country=KP | rejected (blocked_country) | P2 | FRAUD-1.R2, FRAUD-1.R3 | AC-2, AC-3 | class 'blocked' of country: KP; decision table row 3: amount false, country true |
+| TC-3 | DECISION_TABLE | amount=10000.01, country=KP | rejected (amount_limit, blocked_country) | - | FRAUD-1.R3 | AC-3 | decision table row 4: amount true, country true |
+| TC-4 | BVA | Nominal input | approved {"checked": true} | P1 | FRAUD-1.R1 | AC-1 | boundary 10000 of amount (>): just below |
 
 ## Traceability
 

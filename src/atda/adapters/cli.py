@@ -79,7 +79,7 @@ def _parser() -> argparse.ArgumentParser:
     design.add_argument(
         "--fake-responses",
         required=True,
-        help="JSON list of raw model answers, analyst first, used until real clients exist",
+        help="JSON list of model answers: analyst, designer, prioritizer",
     )
     design.add_argument("--out", help="directory for test-design.json and test-design.md")
     return parser
