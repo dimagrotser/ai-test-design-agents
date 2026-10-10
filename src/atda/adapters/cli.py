@@ -5,7 +5,7 @@ from pathlib import Path
 
 from atda.adapters.fake import FakeLLMClient, ScriptExhausted
 from atda.adapters.file_source import FileSource, load_test_context
-from atda.agents.analyst import analyze
+from atda.pipeline import run_pipeline
 from atda.schemas.story import StoryFormatError
 from atda.schemas.test_context import TestContextError
 from atda.structured_generation import StructuredGenerationError
@@ -24,17 +24,17 @@ def main(argv: list[str] | None = None) -> int:
         story = FileSource().load(args.story)
         context = load_test_context(Path(args.context))
         client = FakeLLMClient(_load_responses(Path(args.fake_responses)))
-        analysis = analyze(client, story).value
+        design = run_pipeline(client, story, context).value
     except (StoryFormatError, TestContextError, ResponsesFileError, ScriptExhausted, OSError) as e:
         return _fail(e, 2)
     except StructuredGenerationError as error:
         return _fail(error, 1)
-    design = {
+    printed = {
         "story": story.model_dump(mode="json"),
         "test_context": context.model_dump(mode="json"),
-        **analysis.model_dump(mode="json"),
+        **design.model_dump(mode="json", exclude={"story_id"}),
     }
-    print(json.dumps(design, indent=2, ensure_ascii=False))
+    print(json.dumps(printed, indent=2, ensure_ascii=False))
     return 0
 
 
@@ -62,6 +62,6 @@ def _parser() -> argparse.ArgumentParser:
     design.add_argument(
         "--fake-responses",
         required=True,
-        help="JSON list of raw model answers, used until real clients exist",
+        help="JSON list of raw model answers, analyst first, used until real clients exist",
     )
     return parser
