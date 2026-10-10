@@ -83,3 +83,17 @@ class ReplayClient(LLMClient):
                 f"settings changed since the recording. Last message starts with: {hint!r}"
             )
         return response
+
+
+class RecordingClient(LLMClient):
+    def __init__(self, inner: LLMClient, store: FixtureStore, model: str) -> None:
+        self._inner = inner
+        self._store = store
+        self._model = model
+
+    # Each call is saved as soon as it returns, so an interrupted recording keeps the
+    # fixtures it already paid for.
+    def complete(self, request: LLMRequest) -> LLMResponse:
+        response = self._inner.complete(request)
+        self._store.save(request, self._model, response)
+        return response
