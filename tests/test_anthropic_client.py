@@ -83,6 +83,14 @@ def test_the_request_goes_to_the_messages_endpoint_with_the_documented_headers()
     assert headers == {"x-api-key": KEY, "anthropic-version": "2023-06-01"}
 
 
+def test_the_endpoint_can_be_set() -> None:
+    transport = Transport(answer())
+
+    make(transport, endpoint="https://proxy.example.test/v1/messages").complete(request())
+
+    assert transport.calls[0][0] == "https://proxy.example.test/v1/messages"
+
+
 def test_the_payload_has_the_documented_shape() -> None:
     transport = Transport(answer())
 
