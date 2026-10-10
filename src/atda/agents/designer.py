@@ -1,5 +1,5 @@
 import json
-from collections.abc import Iterator, Mapping
+from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Self
 
@@ -48,15 +48,39 @@ class DesignerReply(BaseModel):
         if info.context is None:
             raise ValueError("validation context with facts is required")
         facts: DesignFacts = info.context["facts"]
-        problems = [
-            problem
-            for number, condition in enumerate(self.conditions, start=1)
-            for problem in _problems(condition, number, facts)
-        ]
-        problems += table_problems(self.conditions, facts.nominal_input)
-        if problems:
+        if problems := condition_problems(self.conditions, facts):
             raise ValueError("; ".join(problems))
         return self
+
+
+def condition_problems(conditions: Sequence[TestCondition], facts: DesignFacts) -> list[str]:
+    problems = [
+        problem
+        for number, condition in enumerate(conditions, start=1)
+        for problem in _problems(condition, number, facts)
+    ]
+    return problems + table_problems(conditions, facts.nominal_input)
+
+
+def assemble_design(
+    story_id: str,
+    analysis: Analysis,
+    conditions: tuple[TestCondition, ...],
+    nominal_input: Mapping[str, Scalar],
+) -> TestDesign:
+    """Expand the conditions and merge duplicates: the deterministic half of every Variant."""
+    merged = merge_duplicates(
+        expand(conditions, analysis.requirements, nominal_input), nominal_input
+    )
+    return TestDesign(
+        story_id=story_id,
+        requirements=analysis.requirements,
+        gaps=analysis.gaps,
+        test_cases=merged.cases,
+        duplicate_ratio=merged.duplicate_ratio,
+        contradictions=merged.contradictions,
+        conditions=conditions,
+    )
 
 
 def design_tests(
@@ -89,19 +113,7 @@ def design_tests(
         num_ctx=num_ctx,
     )
     generated = generate(client, request, DesignerReply, max_attempts, {"facts": facts})
-    merged = merge_duplicates(
-        expand(generated.value.conditions, analysis.requirements, context.nominal_input),
-        context.nominal_input,
-    )
-    design = TestDesign(
-        story_id=story.id,
-        requirements=analysis.requirements,
-        gaps=analysis.gaps,
-        test_cases=merged.cases,
-        duplicate_ratio=merged.duplicate_ratio,
-        contradictions=merged.contradictions,
-        conditions=generated.value.conditions,
-    )
+    design = assemble_design(story.id, analysis, generated.value.conditions, context.nominal_input)
     return Generated(
         value=design,
         attempts=generated.attempts,
@@ -157,20 +169,25 @@ def _collapse(text: str) -> str:
     return " ".join(text.split())
 
 
-def _render(
-    analysis: Analysis, context: TestContext, facts: DesignFacts, feedback: Feedback | None
-) -> str:
-    lines = [f"Target: {context.target}", "", "Requirements:"]
-    for requirement in analysis.requirements:
-        ac_id, ac_text = facts.ac_of[requirement.id]
-        lines.append(f"- {requirement.id} (from {ac_id}: {ac_text}): {requirement.text}")
-    lines += ["", "Inputs with example values:"]
+def render_context(context: TestContext) -> str:
+    lines = [f"Target: {context.target}", "", "Inputs with example values:"]
     lines += [f"- {name}: {json.dumps(value)}" for name, value in context.nominal_input.items()]
     lines += [
         "",
         f"Statuses: {', '.join(context.statuses)}",
         f"Outcome Keys: {', '.join(context.outcome_keys)}",
     ]
+    return "\n".join(lines)
+
+
+def _render(
+    analysis: Analysis, context: TestContext, facts: DesignFacts, feedback: Feedback | None
+) -> str:
+    lines = ["Requirements:"]
+    for requirement in analysis.requirements:
+        ac_id, ac_text = facts.ac_of[requirement.id]
+        lines.append(f"- {requirement.id} (from {ac_id}: {ac_text}): {requirement.text}")
+    lines += ["", render_context(context)]
     if feedback is not None:
         previous = {"conditions": [c.model_dump(mode="json") for c in feedback.conditions]}
         lines += ["", "Problems found in your previous answer:"]
