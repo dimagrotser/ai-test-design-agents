@@ -3,6 +3,7 @@ from atda.agents.designer import design_tests
 from atda.agents.prioritizer import prioritize
 from atda.ports.llm import LLMClient
 from atda.priority import with_priorities
+from atda.refinement import refine_design
 from atda.schemas.story import Story
 from atda.schemas.test_context import TestContext
 from atda.schemas.test_design import TestDesign
@@ -18,6 +19,7 @@ def run_pipeline(
     seed: int | None = None,
     num_ctx: int | None = None,
     max_attempts: int = 3,
+    critic: bool = False,
 ) -> Generated[TestDesign]:
     analysis = analyze(
         client,
@@ -27,7 +29,8 @@ def run_pipeline(
         num_ctx=num_ctx,
         max_attempts=max_attempts,
     )
-    design = design_tests(
+    design_step = refine_design if critic else design_tests
+    design = design_step(
         client,
         story,
         analysis.value,
