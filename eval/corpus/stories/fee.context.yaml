@@ -1,0 +1,11 @@
+target: fees.calculate_fee
+nominal_input:
+  amount: "50.00"
+  card_type: debit
+  international: false
+statuses: [charged, rejected]
+outcome_keys:
+  - flat_fee
+  - percentage_fee
+  - unsupported_card
+  - cross_border_surcharge
