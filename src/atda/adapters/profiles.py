@@ -2,12 +2,16 @@ from importlib.resources import files
 
 from atda.adapters.anthropic import AnthropicClient
 from atda.adapters.http import Transport, post_json
+from atda.adapters.openai_compatible import OpenAICompatibleClient
 from atda.ports.llm import LLMClient
 from atda.schemas.provider_profile import ProviderProfile, ProviderProfileError, parse_profile
 
 # The closed set of adapters, each with the structured-output mechanisms it implements.
 # It lives here because the schema is core and must not know the adapters.
-MECHANISMS: dict[str, frozenset[str]] = {"anthropic": frozenset({"output_config"})}
+MECHANISMS: dict[str, frozenset[str]] = {
+    "anthropic": frozenset({"output_config"}),
+    "openai-compatible": frozenset({"json_schema"}),
+}
 
 
 class UnknownProfile(LookupError):
@@ -44,12 +48,21 @@ def profile_from_text(source: str, name: str) -> ProviderProfile:
 
 
 def build_client(profile: ProviderProfile, *, transport: Transport | None = None) -> LLMClient:
-    # profile_from_text has checked the adapter, so anthropic is the only case so far.
+    # profile_from_text has checked the adapter and the key variable of a cloud profile.
     assert profile.key_variable is not None
+    send = transport or post_json
+    if profile.adapter == "openai-compatible":
+        return OpenAICompatibleClient(
+            profile.model,
+            endpoint=profile.endpoint,
+            key_variable=profile.key_variable,
+            timeout=profile.timeout,
+            transport=send,
+        )
     return AnthropicClient(
         profile.model,
         endpoint=profile.endpoint,
         key_variable=profile.key_variable,
         timeout=profile.timeout,
-        transport=transport or post_json,
+        transport=send,
     )
