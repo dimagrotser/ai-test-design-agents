@@ -282,7 +282,7 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 
 ### 12a: Provider Profiles
 
-- **Status:** todo
+- **Status:** done
 - **Owner:** agent
 - **Branch:** feat/provider-profiles
 - **Blocked by:** 25
@@ -290,10 +290,10 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 - **Scope:** A `ProviderProfile` model: adapter, endpoint, model tag, structured-output mechanism (a closed set of names defined by the adapters), context size, timeout, local or cloud, and the name of the environment variable that holds the key for cloud profiles. Profile files in the repo, with one profile for Claude (the model tag is chosen by the maintainer in the PR). The local profiles come with ticket 12. A `--profile <name>` option on `design` that builds the client; `record` takes it in ticket 13.
 - **Out of scope:** The OpenAI-compatible profile (24), the local profiles (12), choosing the final models (M5).
 - **Acceptance criteria:**
-  - [ ] An unknown profile name fails and lists the available names.
-  - [ ] A profile with a missing field, or with a field that holds a key value instead of a variable name, is rejected.
-  - [ ] `design --profile <name>` builds the matching client.
-  - [ ] The Claude profile loads.
+  - [x] An unknown profile name fails and lists the available names.
+  - [x] A profile with a missing field, or with a field that holds a key value instead of a variable name, is rejected.
+  - [x] `design --profile <name>` builds the matching client.
+  - [x] The Claude profile loads.
 - **Tests first:** Valid profile loads. Each rejection. Client construction from a profile with the transport stubbed.
 
 ### 13: ReplayClient, fixture key and `record`
