@@ -162,7 +162,7 @@ The share of ACs that have at least one Test Case through a Requirement, and the
 _Avoid_: Requirement coverage
 
 **Duplicate Ratio**:
-One minus unique over total Test Cases, where uniqueness is the target plus the normalized input, measured before duplicates are merged. Part of it comes from deterministic expansion, for example the all-false row of a Decision Table repeating a boundary case, and does not reflect model quality.
+One minus unique over total Test Cases, where uniqueness is the target plus the normalized input, measured before duplicates are merged. Part of it comes from deterministic expansion, for example a Decision Table row with a single broken rule repeating a boundary case, and does not reflect model quality.
 _Avoid_: Redundancy
 
 **Failure Rate**:

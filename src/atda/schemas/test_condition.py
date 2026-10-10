@@ -2,7 +2,7 @@ from decimal import Decimal
 from enum import StrEnum
 from typing import Annotated, Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, StrictStr, model_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator, model_validator
 
 from atda.schemas.outcome import ExpectedOutcome
 from atda.schemas.scalar import Scalar
@@ -60,4 +60,23 @@ class EpCondition(BaseModel):
     classes: tuple[EquivalenceClass, ...] = Field(min_length=2)
 
 
-TestCondition = Annotated[BvaCondition | EpCondition, Field(discriminator="technique")]
+class DecisionTableCondition(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    technique: Literal[Technique.DECISION_TABLE] = Technique.DECISION_TABLE
+    requirement_id: StrictStr = Field(min_length=1)
+    evidence: StrictStr = Field(min_length=1)
+    inputs: tuple[StrictStr, ...] = Field(min_length=2, max_length=4)
+
+    @field_validator("inputs")
+    @classmethod
+    def _inputs_are_unique(cls, inputs: tuple[str, ...]) -> tuple[str, ...]:
+        for name in inputs:
+            if inputs.count(name) > 1:
+                raise ValueError(f"duplicate input {name}")
+        return inputs
+
+
+TestCondition = Annotated[
+    BvaCondition | EpCondition | DecisionTableCondition, Field(discriminator="technique")
+]

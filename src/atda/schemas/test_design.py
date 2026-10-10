@@ -18,6 +18,12 @@ class TestCase(BaseModel):
     expected: ExpectedOutcome
 
 
+class Contradiction(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    case_ids: tuple[StrictStr, ...]
+
+
 class TestDesign(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
@@ -25,3 +31,5 @@ class TestDesign(BaseModel):
     requirements: tuple[Requirement, ...]
     gaps: tuple[Gap, ...]
     test_cases: tuple[TestCase, ...]
+    duplicate_ratio: float = 0.0
+    contradictions: tuple[Contradiction, ...] = ()

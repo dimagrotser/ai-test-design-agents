@@ -7,8 +7,10 @@ from pydantic import TypeAdapter, ValidationError
 
 from atda.schemas.test_condition import (
     BvaCondition,
+    DecisionTableCondition,
     EpCondition,
     Operator,
+    Technique,
     TestCondition,
 )
 
@@ -128,3 +130,43 @@ def test_a_condition_survives_a_json_round_trip_with_its_type(source: Mapping[st
 
     assert again == parsed
     assert type(again) is type(parsed)
+
+
+DT = {
+    "technique": "DECISION_TABLE",
+    "requirement_id": "S-1.R4",
+    "evidence": "every broken rule",
+    "inputs": ["amount", "country", "recent_transactions"],
+}
+
+
+def test_a_decision_table_names_the_inputs_it_combines() -> None:
+    table = DecisionTableCondition.model_validate(DT)
+
+    assert table.inputs == ("amount", "country", "recent_transactions")
+    assert table.technique is Technique.DECISION_TABLE
+
+
+@pytest.mark.parametrize("inputs", [["amount", "country"], ["a", "b", "c", "d"]])
+def test_two_to_four_inputs_are_accepted(inputs: list[str]) -> None:
+    assert len(DecisionTableCondition.model_validate(changed(DT, inputs=inputs)).inputs) >= 2
+
+
+@pytest.mark.parametrize("inputs", [["amount"], ["a", "b", "c", "d", "e"]])
+def test_fewer_than_two_or_more_than_four_inputs_are_rejected(inputs: list[str]) -> None:
+    with pytest.raises(ValidationError, match="inputs"):
+        DecisionTableCondition.model_validate(changed(DT, inputs=inputs))
+
+
+def test_a_decision_table_cannot_list_an_input_twice() -> None:
+    with pytest.raises(ValidationError, match="duplicate input amount"):
+        DecisionTableCondition.model_validate(changed(DT, inputs=["amount", "country", "amount"]))
+
+
+def test_a_decision_table_survives_a_json_round_trip_through_the_union() -> None:
+    parsed = condition.validate_python(DT)
+
+    again = condition.validate_json(condition.dump_json(parsed))
+
+    assert isinstance(again, DecisionTableCondition)
+    assert again == parsed

@@ -213,3 +213,94 @@ def test_attempts_and_tokens_are_carried_through() -> None:
     result = design_tests(FakeLLMClient([bad, good]), STORY, ANALYSIS, CONTEXT)
 
     assert (result.attempts, result.input_tokens, result.output_tokens) == (2, 22, 9)
+
+
+TABLE_STORY = Story(
+    id="FRAUD-2",
+    title="Reject risky transactions",
+    text="",
+    acceptance_criteria=(
+        AcceptanceCriterion(id="AC-1", text="An amount over 10 000 is rejected."),
+        AcceptanceCriterion(id="AC-2", text="Transactions from KP, IR or SY are rejected."),
+        AcceptanceCriterion(id="AC-3", text="A customer with 5 or more transactions is rejected."),
+        AcceptanceCriterion(id="AC-4", text="A rejection lists every broken rule."),
+    ),
+)
+TABLE_ANALYSIS = Analysis(
+    requirements=tuple(
+        Requirement(id=f"FRAUD-2.R{n}", ac_id=f"AC-{n}", text=f"Requirement {n}.")
+        for n in range(1, 5)
+    ),
+    gaps=(),
+)
+TABLE_CONTEXT = TestContext(
+    target="fraud.evaluate",
+    nominal_input={"amount": "100", "country": "DE", "recent_transactions": 0},
+    statuses=("approved", "rejected"),
+    outcome_keys=("amount_limit", "blocked_country", "velocity"),
+)
+VELOCITY = {"status": "rejected", "outcome_keys": ["velocity"]}
+
+
+def table_conditions(**updates: object) -> list[dict[str, object]]:
+    return [
+        changed(BVA, requirement_id="FRAUD-2.R1"),
+        changed(EP, requirement_id="FRAUD-2.R2"),
+        {
+            "technique": "BVA",
+            "requirement_id": "FRAUD-2.R3",
+            "input_name": "recent_transactions",
+            "evidence": "5 or more",
+            "operator": ">=",
+            "boundary": 5,
+            "value_type": "integer",
+            "outcome_if_true": VELOCITY,
+            "outcome_if_false": APPROVED,
+        },
+        changed(
+            {
+                "technique": "DECISION_TABLE",
+                "requirement_id": "FRAUD-2.R4",
+                "evidence": "lists every broken rule",
+                "inputs": ["amount", "country", "recent_transactions"],
+            },
+            **updates,
+        ),
+    ]
+
+
+def test_a_decision_table_is_expanded_and_its_repeated_cases_are_merged() -> None:
+    client = FakeLLMClient([reply(*table_conditions())])
+
+    result = design_tests(client, TABLE_STORY, TABLE_ANALYSIS, TABLE_CONTEXT)
+
+    design = result.value
+    assert len(design.test_cases) == 14
+    assert design.duplicate_ratio == pytest.approx(4 / 18)
+    assert design.contradictions == ()
+    nominal_case = next(c for c in design.test_cases if c.overrides == {"country": "DE"})
+    assert nominal_case.requirement_ids == ("FRAUD-2.R2", "FRAUD-2.R4")
+
+
+def test_a_table_input_without_a_single_factor_condition_is_retried() -> None:
+    without_velocity = [
+        c for c in table_conditions() if c.get("input_name") != "recent_transactions"
+    ]
+    client = FakeLLMClient([reply(*without_velocity), reply(*table_conditions())])
+
+    design_tests(client, TABLE_STORY, TABLE_ANALYSIS, TABLE_CONTEXT)
+
+    text = client.requests[1].messages[-1].content
+    assert (
+        "decision table on amount, country, recent_transactions: "
+        "input recent_transactions has no BVA or EP condition"
+    ) in text
+
+
+def test_a_decision_table_with_evidence_outside_the_ac_is_retried() -> None:
+    bad = table_conditions(evidence="all of them")
+    client = FakeLLMClient([reply(*bad), reply(*table_conditions())])
+
+    design_tests(client, TABLE_STORY, TABLE_ANALYSIS, TABLE_CONTEXT)
+
+    assert "evidence 'all of them'" in client.requests[1].messages[-1].content

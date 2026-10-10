@@ -236,10 +236,10 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 - **Branch:** feat/decision-table-merge
 - **Blocked by:** 07
 - **Goal:** Decision Table cases and the Duplicate Ratio, measured before duplicates are merged (ADR 0007).
-- **Scope:** Decision Table condition (up to four boolean conditions, outcome as the union of Outcome Keys). Rows take their true and false values from boundary points of the related conditions. Normalized input for comparison (Decimal normalized, sets sorted). Duplicate Ratio computed before merge and stored on the Test Design. Exact duplicates merge into one Test Case with several Requirement and AC links. Two Test Cases with the same input and different outcomes are not merged and are returned as Contradictions.
+- **Scope:** Decision Table condition (up to four boolean conditions, outcome as the union of Outcome Keys). A row sets an input to the boundary point that breaks its rule and leaves every other input at its Nominal value; the values come from the related BVA and EP conditions. Normalized input for comparison (Decimal normalized, sets sorted). Duplicate Ratio computed before merge and stored on the Test Design. Exact duplicates merge into one Test Case with several Requirement and AC links. Two Test Cases with the same input and different outcomes are not merged and are returned as Contradictions.
 - **Out of scope:** Turning Contradictions into Findings (ticket 21), semantic redundancy.
 - **Acceptance criteria:**
-  - [ ] The all-false row of a three-condition table merges with the matching BVA case, and the merged case keeps both Requirement links.
+  - [ ] A row of a three-condition table with a single broken rule merges with the matching BVA case, and the merged case keeps both Requirement links.
   - [ ] Duplicate Ratio equals one minus unique over total, taken before the merge.
   - [ ] `Decimal("10000.0")` and `Decimal("10000")` count as the same input.
   - [ ] A Contradiction is reported and both cases are kept.
