@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from atda.adapters.cli import main
+from atda.schemas.test_design import TestDesign
 
 STORY = """\
 ---
@@ -259,3 +260,50 @@ def test_the_atda_script_runs_the_design_command(
 
     assert result.returncode == 0
     assert json.loads(result.stdout)["requirements"][0]["id"] == "S-1.R1"
+
+
+def test_out_writes_the_json_and_the_markdown_report_and_prints_their_paths(
+    tmp_path: Path, story: Path, context: Path, responses: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    out = tmp_path / "reports" / "fraud"
+
+    code = main([*design(story, context, responses), "--out", str(out)])
+
+    captured = capsys.readouterr()
+    assert code == 0
+    assert captured.err == ""
+    assert captured.out.splitlines() == [
+        str(out / "test-design.json"),
+        str(out / "test-design.md"),
+    ]
+    saved = TestDesign.model_validate_json((out / "test-design.json").read_text(encoding="utf-8"))
+    assert [r.id for r in saved.requirements] == ["S-1.R1", "S-1.R2"]
+    report = (out / "test-design.md").read_text(encoding="utf-8")
+    assert report.startswith("# Test design S-1: A story\n")
+    assert "| AC-1: An amount over 10 000 is rejected. | S-1.R1 | TC-1, TC-2, TC-3 |" in report
+    assert "| AC-2: Something else holds. | S-1.R2 | uncovered |" in report
+
+
+def test_two_runs_write_identical_bytes(
+    tmp_path: Path, story: Path, context: Path, responses: Path
+) -> None:
+    for name in ("first", "second"):
+        assert main([*design(story, context, responses), "--out", str(tmp_path / name)]) == 0
+
+    for file in ("test-design.json", "test-design.md"):
+        assert (tmp_path / "first" / file).read_bytes() == (tmp_path / "second" / file).read_bytes()
+
+
+def test_an_out_path_that_is_a_file_exits_with_2(
+    tmp_path: Path, story: Path, context: Path, responses: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    taken = tmp_path / "taken"
+    taken.write_text("not a directory")
+
+    code = main([*design(story, context, responses), "--out", str(taken)])
+
+    captured = capsys.readouterr()
+    assert code == 2
+    assert captured.out == ""
+    assert captured.err.startswith("error: ")
+    assert "taken" in captured.err
