@@ -316,12 +316,13 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 - **Blocked by:** 08, 09, 12a, M1
 - **Goal:** CI runs the whole pipeline on the Synthetic Story from recorded responses, with no model and no keys.
 - **Scope:** Fixture key as a hash of model, messages, schema, temperature, seed and `num_ctx`. `ReplayClient` reads fixtures by key and raises a clear error that shows the key when none matches. A `record --profile <name>` subcommand runs the pipeline with a real client at temperature 0 and writes fixtures. A fixture stores the request body and the response body only, never headers, keys or tokens. The maintainer records the fixtures locally from the Synthetic Story and commits them in this PR. A CI step runs `design` on that Story through Replay and compares the output with an expected Test Design.
-- **Out of scope:** Recording held-out Stories (ticket 15 adds the guard), any recording in CI.
+- **Out of scope:** Any recording in CI. `record` takes a Story from the Corpus Manifest and calls `require_dev` from ticket 15 before it does anything else.
 - **Acceptance criteria:**
   - [ ] Changing any one of the six key components changes the key.
   - [ ] A changed prompt makes the replay fail with a missing-fixture error, not a silent old answer.
   - [ ] Replaying recorded fixtures reproduces the recorded Test Design exactly.
   - [ ] A recorded fixture file contains no authorization header and no key value.
+  - [ ] `record` on a held-out Story exits non-zero and writes nothing.
   - [ ] The CI step runs and passes.
 - **Tests first:** Key sensitivity, parametrized over the six components. Missing fixture error. Record then replay gives the same result, using FakeLLMClient as the recorded source. A recording made with a request that carries a fake key and an authorization header leaves neither in the file.
 
@@ -353,14 +354,14 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 - **Branch:** feat/corpus-manifest
 - **Blocked by:** 03
 - **Goal:** Eval-only data is kept apart from what the agents see (ADR 0008).
-- **Scope:** `CorpusManifest` model: per Story the Test Context file, SUT Config, split (dev or held-out) and class (normal or Gap-probe), plus the SUT commit SHA, which must be a full SHA and never a branch name. A function that returns the agent view of a Story, containing the Story and its Test Context only. `record` refuses held-out Stories.
+- **Scope:** `CorpusManifest` model: per Story the Test Context file, SUT Config, split (dev or held-out) and class (normal or Gap-probe), plus the SUT commit SHA, which must be a full SHA and never a branch name. A function that returns the agent view of a Story, containing the Story and its Test Context only. A guard, `require_dev`, that refuses held-out Stories, for the `record` command of ticket 13 to call.
 - **Out of scope:** Manifest content (M2, M3), the eval commands.
 - **Acceptance criteria:**
   - [ ] The agent view has no field for SUT Config, split or class.
   - [ ] A missing Test Context file, an unknown split or an unknown class is rejected with a clear message.
   - [ ] A SUT reference that is not a full commit SHA, such as `main` or an abbreviated hash, is rejected.
-  - [ ] `record` on a held-out Story exits non-zero and writes nothing.
-- **Tests first:** Valid manifest. Each rejection, including the branch name as SUT reference. The agent view type check. The `record` guard.
+  - [ ] `require_dev` refuses a held-out Story and an unknown id, and accepts a dev Story.
+- **Tests first:** Valid manifest. Each rejection, including the branch name as SUT reference. The agent view type check. The `require_dev` guard.
 
 ### M2: FRAUD Story, Test Context, SUT Config, Gold Test Design
 
