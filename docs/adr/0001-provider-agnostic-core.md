@@ -7,3 +7,5 @@ The core depends on two `typing.Protocol` ports, `LLMClient` and `RequirementsSo
 ## Consequences
 
 The import rule can be checked mechanically: a test fails if anything in the core imports from `adapters/`. Features that exist in only one provider, such as native JSON schema output, cannot be assumed. Structured Generation in the core covers providers that lack them.
+
+Superseded in part by ADR 0009 (Claude API access, testing of `AnthropicClient`).
