@@ -167,7 +167,7 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 
 ### M1: Synthetic Story and its Test Context
 
-- **Status:** todo
+- **Status:** done
 - **Owner:** maintainer
 - **Branch:** chore/corpus-synthetic
 - **Blocked by:** 03
@@ -175,8 +175,8 @@ One ticket is one branch and one PR that can be reviewed by eye in 15-20 minutes
 - **Scope:** One Synthetic Story about a payments-flavoured toy function, a fee depending on amount and card type. 3 or 4 ACs that give the Test Designer material for EP, BVA and a Decision Table. The Test Context file with target, Nominal Input and Outcome Keys. Both files go under `eval/corpus/`.
 - **Out of scope:** The toy function itself (ticket 30), the Manifest entry (M2), a Gold Test Design (M4).
 - **Acceptance criteria:**
-  - [ ] Both files load through `FileSource`.
-  - [ ] Every AC has an id and states its thresholds and boundary inclusiveness.
+  - [x] Both files load through `FileSource`.
+  - [x] Every AC has an id and states its thresholds and boundary inclusiveness.
 - **Tests first:** None. Ticket 03 loads the files.
 
 ### 06: Requirements Analyst
